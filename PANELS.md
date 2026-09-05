@@ -6,8 +6,8 @@
 | Web Browser | Параметры URL | Размер UMG (при DPI Scale 1) | Положение |
 | --- | --- | --- | --- |
 | BrowserSession | ?mode=unreal&panel=session | Весь экран | Stretch, offsets 0 |
-| BrowserEnvironment | ?mode=unreal&panel=environment | 297 x 312 | Верхний левый угол, X=40 Y=40 |
-| BrowserToolbar | ?mode=unreal&panel=toolbar | 294 x 106 | Нижний левый угол, alignment 0,1, X=40 Y=-40 |
+| BrowserEnvironment | ?mode=unreal&panel=environment | 340 x 340 | Верхний левый угол, X=40 Y=40 |
+| BrowserToolbar | ?mode=unreal&panel=toolbar | 340 x 120 | Нижний левый угол, alignment 0,1, X=40 Y=-40 |
 | BrowserCompass | ?mode=unreal&panel=compass | 56 x 64 | Верхний правый угол, alignment 1,0, X=-36 Y=32 |
 
 У компактных браузеров используйте точечные anchors, не Stretch. На всех

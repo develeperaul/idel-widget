@@ -23,12 +23,14 @@ async function reset() {
   if (!isolated) welcome.value.focus();
 }
 async function finish(value) {
+  console.log('IDEL:DEBUG finish() called with', JSON.stringify(value));
   session.value = value;
   screen.value = panel === 'session' ? 'complete' : 'presentation';
   presentation.value.setState({ hidden: false });
   const snapshot = JSON.parse(JSON.stringify(value));
   window.dispatchEvent(new CustomEvent('idel-session', { detail: snapshot }));
   send('session.started', snapshot);
+  console.log('IDEL:DEBUG session.started sent, screen =', screen.value);
   await nextTick();
   if (screen.value === 'presentation') presentation.value.focus();
 }
@@ -37,6 +39,7 @@ onMounted(() => {
   document.body.dataset.panel = panel;
   window.IdelWidget = { getState: () => presentation.value.getState(), setState: value => presentation.value.setState(value) };
   window.IdelSession = { getState: () => session.value ? JSON.parse(JSON.stringify(session.value)) : null, reset };
+  console.log('IDEL:DEBUG onMounted panel=' + panel + ' isolated=' + isolated);
   send('ui.ready', { version: 1, panel });
 });
 onUnmounted(() => { delete window.IdelWidget; delete window.IdelSession; delete document.body.dataset.panel; });
