@@ -1,0 +1,71 @@
+const { chromium } = require('playwright');
+const assert = require('node:assert/strict');
+const { pathToFileURL } = require('node:url');
+const path = require('node:path');
+(async () => {
+  const browser = await chromium.launch({headless: true, channel: 'chrome'});
+  try {
+    const page = await browser.newPage();
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.goto(pathToFileURL(path.join(__dirname, 'index.html')).href, {timeout: 90000});
+    await page.evaluate(() => document.fonts.ready);
+    for (const width of [1920, 3840, 768, 375]) {
+      await page.setViewportSize({width, height: width === 3840 ? 2160 : width === 1920 ? 1080 : 900});
+      await page.evaluate(() => IdelSession.reset());
+      await page.screenshot({path: path.join(__dirname, `preview-start-${width}.png`)});
+      await page.locator('#start').click();
+      await page.screenshot({path: path.join(__dirname, `preview-login-${width}.png`)});
+      await page.locator('#phone').fill('+7 (999) 123-45-67');
+      await page.locator('#manager-toggle').click();
+      await page.screenshot({path: path.join(__dirname, `preview-managers-${width}.png`)});
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+      const bounds = await page.locator('#manager-list').boundingBox();
+      assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width);
+      await page.locator('[data-manager="2"]').click();
+      await page.getByRole('button', {name:'Войти', exact:true}).click();
+      assert.equal(await page.locator('#presentation').isVisible(), true);
+      assert.equal(await page.evaluate(() => IdelSession.getState().manager.id), 'mock-manager-3');
+    }
+    await page.evaluate(() => IdelSession.reset());
+    await page.locator('#start').click();
+    await page.getByRole('button', {name:'Войти', exact:true}).click();
+    assert.equal(await page.locator('#phone').getAttribute('aria-invalid'), 'true');
+    await page.locator('#keyboard').getByRole('button', {name:'9', exact:true}).click();
+    assert.equal(await page.locator('#phone').inputValue(), '+7 (9');
+    await page.getByRole('button', {name:'Русская клавиатура'}).click();
+    await page.locator('#keyboard').getByRole('button', {name:'й', exact:true}).click();
+    assert.equal(await page.locator('#phone').inputValue(), '+7 (9');
+    await page.getByRole('button', {name:'Удалить символ'}).click();
+    assert.equal(await page.locator('#phone').inputValue(), '');
+    await page.getByRole('button', {name:'Верхний регистр'}).click();
+    await page.locator('#keyboard').getByRole('button', {name:'Й', exact:true}).click();
+    assert.equal(await page.locator('#phone').inputValue(), '');
+    await page.locator('#phone').fill('89991234567');
+    assert.equal(await page.locator('#phone').inputValue(), '+7 (999) 123-45-67');
+    await page.locator('#phone').press('Backspace');
+    assert.equal(await page.locator('#phone').inputValue(), '+7 (999) 123-45-6');
+    await page.locator('#phone').evaluate(input => input.setSelectionRange(9, 9));
+    await page.locator('#phone').press('Backspace');
+    assert.equal(await page.locator('#phone').inputValue(), '+7 (991) 234-56');
+    await page.locator('#guest').click();
+    assert.equal(await page.evaluate(() => IdelSession.getState().mode), 'guest');
+    assert.equal(await page.locator('#presentation').isVisible(), true);
+    await page.evaluate(() => {
+      window.testCommands = [];
+      window.addEventListener('idel-command', event => window.testCommands.push(event.detail));
+      IdelWidget.setState({minutes: 720, season: 'winter', weather: 'rain'});
+    });
+    assert.equal(await page.locator('#clock').textContent(), '12:00');
+    assert.equal(await page.locator('[data-season="winter"]').getAttribute('aria-pressed'), 'true');
+    await page.locator('[data-weather="clear"]').click();
+    assert.equal(await page.evaluate(() => testCommands.at(-1).method), 'scene.setWeather');
+    await page.locator('#visibility').click();
+    assert.equal(await page.evaluate(() => IdelWidget.getState().hidden), true);
+    await page.locator('#visibility').click();
+    await page.reload({timeout: 90000});
+    assert.equal(await page.locator('#welcome').isVisible(), true);
+    assert.deepEqual(errors, []);
+    console.log('PASS: four viewports, manager and guest entry, validation, RU/EN, shift, backspace.');
+  } finally { await browser.close(); }
+})();

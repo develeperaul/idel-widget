@@ -1,0 +1,26 @@
+@font-face{font-family:Unbounded;src:url('assets/Unbounded.ttf') format('truetype');font-weight:200 900;font-display:swap}
+[hidden]{display:none!important}
+#welcome{position:fixed;inset:0;cursor:pointer}
+.welcome-logo{position:absolute;top:60px;left:60px;width:201px;height:88px}
+#start{position:absolute;left:60px;bottom:60px;height:51px;padding:0 20px;gap:8px;font-size:14px}
+.touch-hint{position:absolute;right:60px;bottom:60px;margin:0;display:flex;align-items:center;gap:12px;color:white;font-size:16px;font-weight:600}.touch-hint img{width:20px;height:20px}
+#session-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;overflow:auto;padding:24px}
+.session-panel{position:relative;width:804px;padding:40px;display:flex;flex-direction:column;align-items:center;flex-shrink:0;gap:24px}
+.session-panel h1{font:400 24px/1.2 Unbounded,Arial,sans-serif;margin:0;text-align:center}
+.session-description{font-size:12px;line-height:1.5;color:rgba(5,6,6,.56);text-align:center;margin:-4px 0 0}
+.session-close{position:absolute;right:16px;top:16px;width:48px;height:48px;border-radius:6px}.session-close img{width:16px;height:16px}
+.session-fields{width:100%;display:flex;flex-direction:column;gap:8px}
+.phone-field{display:flex;align-items:center;background:white;border:1px solid var(--border);border-radius:8px;height:48px;padding:6px 8px 6px 20px}
+.phone-field:focus-within{border-color:var(--ink)}.phone-field label{flex:1;min-width:0;font-size:8px;color:rgba(5,6,6,.56)}
+#phone{display:block;width:100%;font:500 12px/1.5 Nunito,Arial,sans-serif;border:0;outline:0;color:var(--ink);background:transparent;padding:0;letter-spacing:0}
+#phone-clear{width:32px;height:32px;border:0;background:#f0f0f0}.phone-field:has([aria-invalid=true]){border-color:#b52828}
+#manager-field{position:relative}#manager-toggle{width:100%;height:48px;text-align:left;justify-content:space-between;padding:6px 8px 6px 20px;border-radius:8px}#manager-toggle small{display:block;font-size:8px;font-weight:500;color:rgba(5,6,6,.56)}#manager-toggle>img{width:32px;height:32px;padding:8px;background:var(--primary);border-radius:4px}#manager-name{display:block;font-size:12px;line-height:18px}
+#manager-list{position:absolute;left:calc(100% + 44px);top:0;width:320px;padding:20px;z-index:5}#manager-list p{font-size:10px;color:rgba(5,6,6,.56);margin:0 0 8px}#manager-options{display:flex;flex-direction:column;gap:4px;max-height:470px;overflow:auto}#manager-options button{min-height:48px;padding:12px 16px;text-align:left;justify-content:space-between;background:transparent;gap:8px;flex-shrink:0}#manager-options button[aria-pressed=true]{background:white}#manager-options img{width:16px;height:16px}
+#session-error{font-size:12px;color:#a52121;line-height:16px;margin:-16px 0;min-height:0}#session-error:empty{display:none}
+#keyboard{display:flex;flex-direction:column;gap:4px;width:100%;align-items:center}.key-row{display:flex;justify-content:center;gap:4px;width:100%}.key-row button{width:48px;height:48px;border-radius:8px;font-size:14px;flex:0 1 48px;min-width:0}.key-row button.wide{width:100px;flex-basis:100px;gap:6px}.key-row button.space{width:516px;flex-basis:516px}.key-row img{width:20px;height:20px}
+.session-actions{width:516px;max-width:100%;display:flex;flex-direction:column;gap:8px}.session-actions button{height:49px;font-size:14px}
+@media(min-width:2500px){.welcome-logo{top:120px;left:120px;width:402px;height:176px}#start{left:120px;bottom:120px;transform:scale(2);transform-origin:bottom left}.touch-hint{right:120px;bottom:120px;transform:scale(2);transform-origin:bottom right}.session-panel{transform:scale(2)}}
+@media(max-width:1550px){#manager-list{left:auto;right:0;top:calc(100% + 8px);box-shadow:0 8px 32px #0002;background:rgba(255,255,255,.98)}}
+@media(max-width:850px){#session-screen{padding:16px}.session-panel{width:100%;padding:64px 16px 24px;gap:20px}.session-description{max-width:540px}.session-panel h1{font-size:22px}.key-row{gap:3px}.key-row button{height:44px;font-size:12px}.key-row button.wide{gap:2px}.key-row img{width:16px;height:16px}.welcome-logo{top:24px;left:24px}#start{left:24px;bottom:80px}.touch-hint{left:24px;right:auto;bottom:32px;font-size:13px}#manager-list{max-width:100%}}
+@media(max-width:450px){.key-row button{font-size:11px}.key-row button.wide{flex-basis:64px}.key-row button.wide .shift-label{display:none}.session-description{font-size:11px}.session-panel h1{font-size:20px}}
+@media(max-height:760px){#session-screen{align-items:flex-start}.session-panel{margin:auto}}
