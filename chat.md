@@ -2303,7 +2303,6 @@ APT_pb347891
 >
 > </details>
 >
-> - Ran `cat dubki-project/README.md dubki-project/docs/architecture.md`
 >
 > Searched the web for `site.dev.epicgames.com UWebBrowser OnConsoleMessage ExecuteJavascript SupportsTransparency Unreal`
 >

@@ -4,8 +4,24 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Идель. Квартал на Сенной</title>
+  <script>
+    window.IdelConfig = {
+      apiBaseUrl: 'http://idel.yes-project.ru/api',
+      realSession: true,
+      allowHttpSession: true,
+      ...window.IdelConfig,
+    };
+    if (new URLSearchParams(location.search).get('panel') === 'saved') {
+      document.documentElement.dataset.savedPreparing = 'true';
+    }
+  </script>
+  <style>html[data-saved-preparing] #app{opacity:0;pointer-events:none}</style>
   <link rel="stylesheet" href="widget.css">
   <link rel="stylesheet" href="session.css">
+  <link rel="stylesheet" href="location.css">
+  <link rel="stylesheet" href="project.css">
+  <link rel="stylesheet" href="apartments.css">
+  <link rel="stylesheet" href="saved.css">
 </head>
 <body>
   <div id="app"></div>

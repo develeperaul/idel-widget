@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Идель — проверка анимации снимка</title>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; background: #10141a; font: 14px Arial, sans-serif; }
+    iframe { display: block; width: 100%; height: 100%; border: 0; }
+    .demo { position: fixed; z-index: 5; top: 16px; right: 16px; display: flex; align-items: center; gap: 12px; max-width: min(90vw, 480px); padding: 12px 14px; color: #fff; background: #18222ce8; border: 1px solid #ffffff38; border-radius: 12px; box-shadow: 0 8px 30px #0005; }
+    .demo button { flex: none; padding: 9px 12px; color: #172000; background: #d8fa31; border: 0; border-radius: 7px; font-weight: 700; cursor: pointer; }
+    .demo button:hover { background: #e4ff71; }
+  </style>
+</head>
+<body>
+  <iframe id="app" src="/?view=apartments" title="Интерфейс Идель"></iframe>
+  <div class="demo"><span>Локальный показ: нажмите камеру. Ответ Unreal имитируется тестовым кадром.</span><button id="replay" type="button">Показать</button></div>
+  <script>
+    const app = document.getElementById('app');
+    const testImage = new URL('/assets/background.png', location.origin).href;
+    app.addEventListener('load', () => {
+      app.contentWindow.addEventListener('idel-command', event => {
+        if (event.detail?.method !== 'scene.screenshot') return;
+        const { captureId } = event.detail.params || {};
+        if (!captureId) return;
+        setTimeout(() => app.contentWindow.IdelApartments?.setScreenshot({ captureId, url: testImage }), 350);
+      });
+    });
+    document.getElementById('replay').addEventListener('click', () => app.contentDocument.querySelector('[data-action="scene.screenshot"]')?.click());
+  </script>
+</body>
+</html>

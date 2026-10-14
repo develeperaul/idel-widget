@@ -6,6 +6,7 @@ const path = require('node:path');
   const browser = await chromium.launch({headless:true, channel:'chrome'});
   try {
     const page = await browser.newPage();
+    await page.addInitScript(() => { window.IdelConfig = { realSession: false }; });
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     const base = pathToFileURL(path.join(__dirname, 'index.html')).href;
@@ -25,6 +26,25 @@ const path = require('node:path');
       assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor),'rgba(0, 0, 0, 0)');
       await page.locator(action).click();
       assert.equal(await page.evaluate(() => lastCommand.method),method);
+      if (panel === 'environment') {
+        await page.evaluate(() => {
+          window.timeCommands = [];
+          window.addEventListener('idel-command', event => {
+            if (event.detail.method === 'scene.setTime') window.timeCommands.push(event.detail);
+          });
+        });
+        const slider = await page.locator('#time').boundingBox();
+        await page.mouse.move(slider.x + slider.width * .3, slider.y + slider.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(slider.x + slider.width * .7, slider.y + slider.height / 2, {steps: 8});
+        const commands = await page.evaluate(() => window.timeCommands);
+        assert.ok(commands.length > 1, 'Time commands must arrive before mouse release');
+        for (const command of commands) {
+          assert.equal(command.params.hours, command.params.minutes / 60);
+        }
+        await page.mouse.up();
+        assert.equal(await page.evaluate(() => window.timeCommands.length), commands.length, 'Release must not duplicate the last command');
+      }
       await page.screenshot({path:path.join(__dirname,`preview-panel-${panel}.png`)});
     }
     await page.setViewportSize({width:1920,height:1080});

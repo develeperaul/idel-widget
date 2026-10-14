@@ -6,27 +6,47 @@ const path = require('node:path');
   const browser = await chromium.launch({headless: true, channel: 'chrome'});
   try {
     const page = await browser.newPage();
+    await page.addInitScript(() => { window.IdelConfig = { realSession: false }; });
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(pathToFileURL(path.join(__dirname, 'index.html')).href, {timeout: 90000});
     await page.evaluate(() => document.fonts.ready);
-    for (const width of [1920, 3840, 768, 375]) {
+    for (const [index, width] of [1920, 3840, 768, 375].entries()) {
       await page.setViewportSize({width, height: width === 3840 ? 2160 : width === 1920 ? 1080 : 900});
       await page.evaluate(() => IdelSession.reset());
       await page.screenshot({path: path.join(__dirname, `preview-start-${width}.png`)});
       await page.locator('#start').click();
       await page.screenshot({path: path.join(__dirname, `preview-login-${width}.png`)});
-      await page.locator('#phone').fill('+7 (999) 123-45-67');
+      await page.locator('#phone').fill(`+7 (999) 123-45-${67 + index}`);
+      assert.equal(await page.locator('#manager-toggle').count(), 0);
+      await page.getByRole('button', {name:'Войти', exact:true}).click();
+      await page.locator('#fio').waitFor({state:'visible'});
+      assert.equal(await page.locator('#phone').getAttribute('readonly'), '');
+      await page.locator('#fio').fill('Иванов Иван Иванович');
       await page.locator('#manager-toggle').click();
       await page.screenshot({path: path.join(__dirname, `preview-managers-${width}.png`)});
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
       const bounds = await page.locator('#manager-list').boundingBox();
       assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width);
       await page.locator('[data-manager="2"]').click();
+      if (index === 0) {
+        await page.getByRole('button', {name:'Войти', exact:true}).click();
+        assert.equal(await page.locator('#session-consent').getAttribute('aria-invalid'), 'true');
+        assert.equal(await page.locator('#presentation').isVisible(), false);
+        assert.equal(await page.locator('.session-consent a').count(), 0);
+      }
+      await page.locator('#session-consent').check();
       await page.getByRole('button', {name:'Войти', exact:true}).click();
       assert.equal(await page.locator('#presentation').isVisible(), true);
       assert.equal(await page.evaluate(() => IdelSession.getState().manager.id), 'mock-manager-3');
     }
+    await page.evaluate(() => IdelSession.reset());
+    await page.locator('#start').click();
+    await page.locator('#phone').fill('+7 (999) 123-45-67');
+    await page.getByRole('button', {name:'Войти', exact:true}).click();
+    await page.locator('#presentation').waitFor({state:'visible'});
+    assert.equal(await page.evaluate(() => IdelSession.getState().mock), true);
+    assert.equal(await page.locator('#fio').count(), 0);
     await page.evaluate(() => IdelSession.reset());
     await page.locator('#start').click();
     await page.getByRole('button', {name:'Войти', exact:true}).click();
@@ -66,6 +86,6 @@ const path = require('node:path');
     await page.reload({timeout: 90000});
     assert.equal(await page.locator('#welcome').isVisible(), true);
     assert.deepEqual(errors, []);
-    console.log('PASS: four viewports, manager and guest entry, validation, RU/EN, shift, backspace.');
+    console.log('PASS: four viewports, two-step mock registration, returning client, consent, guest, phone mask and keyboard.');
   } finally { await browser.close(); }
 })();

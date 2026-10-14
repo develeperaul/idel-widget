@@ -4,23 +4,59 @@
 .welcome-logo{position:absolute;top:60px;left:60px;width:201px;height:88px}
 #start{position:absolute;left:60px;bottom:60px;height:51px;padding:0 20px;gap:8px;font-size:14px}
 .touch-hint{position:absolute;right:60px;bottom:60px;margin:0;display:flex;align-items:center;gap:12px;color:white;font-size:16px;font-weight:600}.touch-hint img{width:20px;height:20px}
-#session-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;overflow:auto;padding:24px}
-.session-panel{position:relative;width:804px;padding:40px;display:flex;flex-direction:column;align-items:center;flex-shrink:0;gap:24px}
-.session-panel h1{font:400 24px/1.2 Unbounded,Arial,sans-serif;margin:0;text-align:center}
-.session-description{font-size:12px;line-height:1.5;color:rgba(5,6,6,.56);text-align:center;margin:-4px 0 0}
-.session-close{position:absolute;right:16px;top:16px;width:48px;height:48px;border-radius:6px}.session-close img{width:16px;height:16px}
-.session-fields{width:100%;display:flex;flex-direction:column;gap:8px}
-.phone-field{display:flex;align-items:center;background:white;border:1px solid var(--border);border-radius:8px;height:48px;padding:6px 8px 6px 20px}
-.phone-field:focus-within{border-color:var(--ink)}.phone-field label{flex:1;min-width:0;font-size:8px;color:rgba(5,6,6,.56)}
-#phone{display:block;width:100%;font:500 12px/1.5 Nunito,Arial,sans-serif;border:0;outline:0;color:var(--ink);background:transparent;padding:0;letter-spacing:0}
-#phone-clear{width:32px;height:32px;border:0;background:#f0f0f0}.phone-field:has([aria-invalid=true]){border-color:#b52828}
-#manager-field{position:relative}#manager-toggle{width:100%;height:48px;text-align:left;justify-content:space-between;padding:6px 8px 6px 20px;border-radius:8px}#manager-toggle small{display:block;font-size:8px;font-weight:500;color:rgba(5,6,6,.56)}#manager-toggle>img{width:32px;height:32px;padding:8px;background:var(--primary);border-radius:4px}#manager-name{display:block;font-size:12px;line-height:18px}
-#manager-list{position:absolute;left:calc(100% + 44px);top:0;width:320px;padding:20px;z-index:5}#manager-list p{font-size:10px;color:rgba(5,6,6,.56);margin:0 0 8px}#manager-options{display:flex;flex-direction:column;gap:4px;max-height:470px;overflow:auto}#manager-options button{min-height:48px;padding:12px 16px;text-align:left;justify-content:space-between;background:transparent;gap:8px;flex-shrink:0}#manager-options button[aria-pressed=true]{background:white}#manager-options img{width:16px;height:16px}
-#session-error{font-size:12px;color:#a52121;line-height:16px;margin:-16px 0;min-height:0}#session-error:empty{display:none}
+#session-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;overflow:auto;padding:24px;pointer-events:auto;isolation:isolate}
+.session-background{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:-1;pointer-events:none}
+.session-panel{position:relative;width:804px;padding:40px;display:flex;flex-direction:column;align-items:center;flex-shrink:0;gap:24px;isolation:isolate}
+.session-heading{display:flex;flex-direction:column;align-items:center;gap:20px;width:100%}
+.session-panel h1{font:400 24px/1.2 Unbounded,Arial,sans-serif;margin:0;text-align:center;text-box-trim:trim-both;text-box-edge:cap alphabetic}
+.session-description{font-size:12px;font-weight:500;line-height:1.5;color:rgba(5,6,6,.56);text-align:center;margin:0;text-box-trim:trim-both;text-box-edge:cap alphabetic}
+.session-close,.session-back{position:absolute;top:16px;width:48px;height:48px;border-radius:6px;border-width:.5px}.session-close{right:16px}.session-back{left:16px}
+.session-fields{width:100%;display:flex;flex-direction:column;gap:12px;position:relative;z-index:2}
+.phone-field,.fio-field{display:flex;align-items:center;gap:16px;background:white;border:1px solid var(--border);border-radius:8px;height:48px;padding:8px 8px 8px 20px;backdrop-filter:blur(4px)}
+.phone-field:focus-within,.fio-field:focus-within{border-color:var(--ink)}
+.phone-field label,.fio-field label{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;font-size:8px;font-weight:500;line-height:1.5;color:rgba(5,6,6,.56);text-box-trim:trim-both;text-box-edge:cap alphabetic}
+#phone,#fio{display:block;width:100%;font:500 12px/1.5 Nunito,Arial,sans-serif;border:0;outline:0;color:var(--ink);background:transparent;padding:0;letter-spacing:0}
+#phone::placeholder{color:var(--ink);opacity:1}#fio::placeholder{color:rgba(5,6,6,.4);opacity:1}
+#phone-clear,#fio-clear,.session-field-icon{width:32px;height:32px;display:flex;align-items:center;justify-content:center;flex:none;border:0;background:#f0f0f0;border-radius:4px}
+.phone-field:has([aria-invalid=true]),.fio-field:has([aria-invalid=true]){border-color:#b52828}
+.session-phone-locked{opacity:.8}.session-phone-locked #phone{color:rgba(5,6,6,.4)}.session-phone-locked:focus-within{border-color:var(--border)}
+.session-registration-fields{display:flex;flex-direction:column;gap:4px;width:100%}
+#manager-field{position:relative}
+#manager-toggle{width:100%;height:48px;text-align:left;justify-content:space-between;gap:16px;padding:8px 8px 8px 20px;border-radius:8px;border-width:.5px;font-weight:500}
+#manager-toggle[aria-expanded=true]{border:1px solid var(--ink)}#manager-toggle[aria-invalid=true]{border-color:#b52828}
+.manager-label{min-width:0;display:flex;flex-direction:column;gap:3px}#manager-toggle small{display:block;font-size:8px;font-weight:500;line-height:1.5;color:rgba(5,6,6,.56)}
+#manager-toggle[aria-expanded=true] .session-field-icon{background:var(--primary)}
+#manager-name{display:block;font-size:12px;line-height:18px;color:rgba(5,6,6,.56);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#manager-toggle:has(small) #manager-name{color:var(--ink)}
+#manager-list{position:absolute;left:calc(100% + 44px);top:0;width:320px;height:481.5px;padding:20px;z-index:5;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+#manager-list>p{font-size:10px;line-height:1.5;font-weight:500;color:rgba(5,6,6,.56);margin:0}
+#manager-options{display:flex;flex-direction:column;gap:4px;min-height:0;overflow:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+#manager-options::-webkit-scrollbar{width:2px}#manager-options::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+#manager-options button{min-height:48px;padding:14px 20px;text-align:left;justify-content:space-between;background:transparent;gap:6px;flex-shrink:0;border-width:.5px;font-size:12px;font-weight:500;line-height:1.5}
+#manager-options button[aria-pressed=true]{background:white}#manager-options button:hover{background:#edf1e4}
+.session-manager-error,.session-manager-status{font-size:12px;line-height:1.4;margin:4px 0 0;color:rgba(5,6,6,.56)}.session-manager-error{color:#a52121}.session-manager-error button{display:inline-flex;min-height:28px;padding:0 8px;margin-left:4px}
+#session-error{font-size:12px;color:#a52121;line-height:16px;margin:-12px 0;min-height:0;width:100%}#session-error:empty{display:none}
 #keyboard{display:flex;flex-direction:column;gap:4px;width:100%;align-items:center}.key-row{display:flex;justify-content:center;gap:4px;width:100%}.key-row button{width:48px;height:48px;border-radius:8px;font-size:14px;flex:0 1 48px;min-width:0}.key-row button.wide{width:100px;flex-basis:100px;gap:6px}.key-row button.space{width:516px;flex-basis:516px}.key-row img{width:20px;height:20px}
-.session-actions{width:516px;max-width:100%;display:flex;flex-direction:column;gap:8px}.session-actions button{height:49px;font-size:14px}
-@media(min-width:2500px){.welcome-logo{top:120px;left:120px;width:402px;height:176px}#start{left:120px;bottom:120px;transform:scale(2);transform-origin:bottom left}.touch-hint{right:120px;bottom:120px;transform:scale(2);transform-origin:bottom right}.session-panel{transform:scale(2)}}
-@media(max-width:1550px){#manager-list{left:auto;right:0;top:calc(100% + 8px);box-shadow:0 8px 32px #0002;background:rgba(255,255,255,.98)}}
-@media(max-width:850px){#session-screen{padding:16px}.session-panel{width:100%;padding:64px 16px 24px;gap:20px}.session-description{max-width:540px}.session-panel h1{font-size:22px}.key-row{gap:3px}.key-row button{height:44px;font-size:12px}.key-row button.wide{gap:2px}.key-row img{width:16px;height:16px}.welcome-logo{top:24px;left:24px}#start{left:24px;bottom:80px}.touch-hint{left:24px;right:auto;bottom:32px;font-size:13px}#manager-list{max-width:100%}}
+#session-form .key-row button{border-width:.5px}
+.session-actions{width:516px;max-width:100%;display:flex;flex-direction:column;gap:8px}.session-actions>button{height:49px;font-size:14px;border-width:.5px}
+.session-registration .session-actions{gap:16px}
+.session-consent{display:flex;align-items:flex-start;gap:8px;width:100%;font-size:12px;font-weight:400;line-height:1.4;color:rgba(5,6,6,.56);cursor:pointer}
+.session-consent-control{position:relative;display:block;width:12px;height:12px;flex:none;margin-top:1px}
+#session-consent{position:absolute;inset:-4px;width:20px;height:20px;margin:0;opacity:0;cursor:pointer;z-index:1}
+.session-consent-control:has(:focus-visible){outline:2px solid #4b153e;outline-offset:3px;border-radius:2px}
+.session-consent-document{font-weight:600;color:var(--ink);text-decoration:underline;text-underline-offset:2px}
+.session-consent-check{position:absolute;inset:-2px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;background:var(--primary);border-radius:2px}
+.session-consent-invalid .session-consent-control{outline:1px solid #b52828;outline-offset:2px}
+#session-form button:disabled{cursor:wait;opacity:.6}#session-form input:disabled{cursor:wait}
+/* SVG files keep their native dimensions; the inner wrapper scales the artwork to half size. */
+.session-icon{display:block;position:relative;width:16px;height:16px;flex:none}
+.session-icon-art{display:block;width:32px;height:32px;transform:scale(.5);transform-origin:top left}
+.session-icon-small{width:12px;height:12px}.session-icon-small .session-icon-art{width:24px;height:24px}
+.session-icon-backspace{width:20px;height:20px}.session-icon-backspace .session-icon-art{width:40px;height:40px}
+.session-icon-art img{display:block;width:revert;height:revert;max-width:none}
+.session-credit,.session-demo{position:fixed;bottom:20px;margin:0;color:rgba(255,255,255,.9);font-size:10px;font-weight:600;line-height:1.1;pointer-events:none}.session-credit{left:40px}.session-demo{right:40px}
+@media(min-width:2500px){.welcome-logo{top:120px;left:120px;width:402px;height:176px}#start{left:120px;bottom:120px;transform:scale(2);transform-origin:bottom left}.touch-hint{right:120px;bottom:120px;transform:scale(2);transform-origin:bottom right}.session-panel{transform:scale(2)}.session-credit{left:80px;bottom:40px;font-size:20px}.session-demo{right:80px;bottom:40px;font-size:20px}}
+@media(max-width:1550px){#manager-list{left:auto;right:0;top:calc(100% + 8px);height:360px;max-height:50vh;box-shadow:0 8px 32px #0002;background:rgba(255,255,255,.98)}}
+@media(max-width:850px){#session-screen{padding:16px}.session-panel{width:100%;padding:64px 16px 24px;gap:20px}.session-description{max-width:540px}.session-panel h1{font-size:22px}.key-row{gap:3px}.key-row button{height:44px;font-size:12px}.key-row button.wide{gap:2px}.key-row img{width:16px;height:16px}.session-icon-art img{width:revert;height:revert}.welcome-logo{top:24px;left:24px}#start{left:24px;bottom:80px}.touch-hint{left:24px;right:auto;bottom:32px;font-size:13px}#manager-list{max-width:100%}.session-credit{left:16px;bottom:8px}.session-demo{right:16px;bottom:8px}}
 @media(max-width:450px){.key-row button{font-size:11px}.key-row button.wide{flex-basis:64px}.key-row button.wide .shift-label{display:none}.session-description{font-size:11px}.session-panel h1{font-size:20px}}
 @media(max-height:760px){#session-screen{align-items:flex-start}.session-panel{margin:auto}}
