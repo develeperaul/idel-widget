@@ -1,7 +1,12 @@
+import { throughDataGateway } from './dataGateway.js';
 const configuredBase = window.IdelConfig?.apiBaseUrl || (location.protocol === 'file:' ? 'http://idel.yes-project.ru/api' : '/api');
 export const apiBase = new URL(configuredBase.replace(/\/$/, '') + '/', location.href);
 
 export async function catalogRequest(path, { signal, token, method = 'GET', body } = {}) {
+  return throughDataGateway(path, { signal, token, method, body }, catalogRequestDirect);
+}
+
+export async function catalogRequestDirect(path, { signal, token, method = 'GET', body } = {}) {
   if (token && apiBase.protocol !== 'https:' && !(apiBase.protocol === 'http:' && window.IdelConfig?.allowHttpSession === true)) throw new Error('Authenticated API requires HTTPS');
   const response = await fetch(new URL(path, apiBase), {
     signal, method, credentials: 'omit', headers: { Accept: 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) },

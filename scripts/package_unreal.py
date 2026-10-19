@@ -10,7 +10,7 @@ RUNTIME_FILES = (
     "index.html", "widget.css", "session.css", "location.css",
     "project.css", "apartments.css", "saved.css", "build/app.js",
 )
-DOCUMENTS = ("README.md", "PANELS.md", "EVENTS.md")
+DOCUMENTS = ("README.md", "PANELS.md", "EVENTS.md", "DATA_CACHE.md")
 
 
 def main() -> int:

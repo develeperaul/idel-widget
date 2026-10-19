@@ -16,3 +16,9 @@ body.ui-hidden .saved-panel{visibility:hidden}
 @media(max-width:600px){.saved-share-dialog{padding:28px 16px}.saved-share-dialog h2{font-size:16px}.saved-share-dialog #share-keyboard .key-row button{height:32px;flex-basis:32px;font-size:10px}.saved-share-dialog #share-keyboard .key-row button.wide{flex-basis:60px}.saved-share-dialog .saved-share-channels{flex-wrap:wrap}.saved-share-steps{gap:5px}.saved-share-steps span{width:80px}}
 .saved-share-dialog .saved-email-label input{height:44px;border:1px solid var(--border);border-radius:4px;padding:10px;font:14px Nunito,Arial,sans-serif}
 @media(min-width:2500px){.saved-panel,.gallery-panel{left:1006px;top:80px;width:1222.5px;max-width:none;height:1000px;max-height:none;transform:scale(2);transform-origin:top left}.saved-share-dialog,.session-exit-dialog{transform:scale(2)}.gallery-viewer{padding:80px;gap:56px}.gallery-viewer-close{height:88px;padding:0 36px;font-size:22px}.gallery-viewer-stage{gap:48px;padding:48px}.gallery-viewer-stage button{width:96px;height:96px;font-size:28px}.gallery-viewer-thumbs button{width:168px;height:168px}}
+
+/* Standalone Figma exit button (panel=exit). */
+.session-exit-button{width:96px;height:100px;display:flex;align-items:flex-start;justify-content:flex-start;padding:32px 30px;border:0;border-radius:16px;background:rgba(255,255,255,.9);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.session-exit-button:hover{background:rgba(255,255,255,.96)}
+.session-exit-button img{width:36px;height:36px;flex:none;display:block}
+body.ui-hidden .session-exit-button{visibility:hidden}

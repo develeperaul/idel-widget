@@ -66,7 +66,7 @@ const path = require('node:path');
       await page.evaluate(() => document.activeElement.blur());
       await page.screenshot({ path: path.join(__dirname, `preview-location-${width}.png`) });
     }
-    await page.goto(base + '?mode=unreal', { timeout: 90000 });
+    await page.goto(base + '?data=standalone&mode=unreal', { timeout: 90000 });
     await page.locator('#start').click();
     await page.locator('#guest').click();
     await page.locator('[data-action="ui.info"]').click();

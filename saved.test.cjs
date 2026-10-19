@@ -12,7 +12,6 @@ const metadata = { options: { section: [], rooms: [], features: [] }, bounds: { 
   const browser = await chromium.launch({ headless: true, channel: 'chrome' });
   try {
     const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
-    await page.addInitScript(() => { window.IdelConfig = { realSession: false }; });
     const errors = [], commands = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/api/**', route => {
@@ -71,7 +70,7 @@ const metadata = { options: { section: [], rooms: [], features: [] }, bounds: { 
     assert.deepEqual(errors, []);
     const isolated = await browser.newPage({ viewport: { width: 1, height: 1 } });
     isolated.on('pageerror', error => errors.push(error.message));
-    await isolated.goto(pathToFileURL(path.join(__dirname, 'index.html')).href + '?mode=unreal&panel=saved', { waitUntil: 'domcontentloaded', timeout: 90000 });
+    await isolated.goto(pathToFileURL(path.join(__dirname, 'index.html')).href + '?data=standalone&mode=unreal&panel=saved', { waitUntil: 'domcontentloaded', timeout: 90000 });
     assert.equal(await isolated.locator('#app').evaluate(e => getComputedStyle(e).opacity), '0');
     await isolated.setViewportSize({ width: 1920, height: 1080 });
     await isolated.waitForFunction(() => !document.documentElement.hasAttribute('data-saved-preparing'));
@@ -93,7 +92,7 @@ const metadata = { options: { section: [], rooms: [], features: [] }, bounds: { 
     assert.equal(await isolated.evaluate(() => commands.at(-1)?.method), 'ui.panel.close');
     await isolated.close();
     const isolatedGallery = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
-    await isolatedGallery.goto(pathToFileURL(path.join(__dirname, 'index.html')).href + '?mode=unreal&panel=gallery', { waitUntil: 'domcontentloaded', timeout: 90000 });
+    await isolatedGallery.goto(pathToFileURL(path.join(__dirname, 'index.html')).href + '?data=standalone&mode=unreal&panel=gallery', { waitUntil: 'domcontentloaded', timeout: 90000 });
     assert.equal(await isolatedGallery.locator('.gallery-grid button').count(), 25);
     assert.equal(await isolatedGallery.locator('.top').count(), 0);
     await isolatedGallery.close();
@@ -106,7 +105,7 @@ const metadata = { options: { section: [], rooms: [], features: [] }, bounds: { 
       assert.equal(new URL(route.request().url()).searchParams.get('residentialComplex'), '148');
       return route.fulfill({ json: { items: [{ id: 2, title: 'Двор', image: 'https://media.example.test/courtyard.jpg', sort: 2 }, { id: 1, title: 'Фасад', image: 'https://media.example.test/facade.jpg', sort: 1 }] }, headers: { 'Access-Control-Allow-Origin': '*' } });
     });
-    await galleryApi.goto(pathToFileURL(path.join(__dirname, 'index.html')).href + '?mode=unreal&panel=gallery', { waitUntil: 'domcontentloaded', timeout: 90000 });
+    await galleryApi.goto(pathToFileURL(path.join(__dirname, 'index.html')).href + '?data=standalone&mode=unreal&panel=gallery', { waitUntil: 'domcontentloaded', timeout: 90000 });
     await galleryApi.locator('.gallery-grid button').first().waitFor();
     assert.equal(await galleryApi.locator('.gallery-grid button').count(), 2);
     assert.equal(await galleryApi.locator('.gallery-grid img').first().getAttribute('alt'), 'Фасад');
@@ -118,7 +117,7 @@ const metadata = { options: { section: [], rooms: [], features: [] }, bounds: { 
     toolbar.on('pageerror', error => errors.push(error.message));
     let toolbarApiRequests = 0;
     toolbar.on('request', request => { if (request.url().includes('/api/')) toolbarApiRequests++; });
-    await toolbar.goto(pathToFileURL(path.join(__dirname, 'index.html')).href + '?mode=unreal&panel=toolbar', { waitUntil: 'domcontentloaded', timeout: 90000 });
+    await toolbar.goto(pathToFileURL(path.join(__dirname, 'index.html')).href + '?data=standalone&mode=unreal&panel=toolbar', { waitUntil: 'domcontentloaded', timeout: 90000 });
     await toolbar.evaluate(() => { window.commands = []; window.addEventListener('idel-command', event => commands.push(event.detail)); });
     await toolbar.locator('[data-action="ui.gallery"]').click();
     await toolbar.locator('[data-action="ui.favorites"]').click();

@@ -1,4 +1,4 @@
-import { apiBase } from './catalog.js';
+import { apiBase, catalogRequest } from './catalog.js';
 
 export const realSessionEnabled = window.IdelConfig?.realSession === true;
 const mockManagerNames = ['Светлана Юрьевна Павлова', 'Дмитрий Алексеевич Кузнецов', 'Анна Викторовна Попова', 'Максим Игоревич Соколов', 'Ольга Николаевна Морозова', 'Артём Павлович Волков', 'Мария Денисовна Васильева', 'Кирилл Евгеньевич Новиков', 'Наталья Олеговна Фёдорова', 'Илья Романович Михайлов', 'Андрей Владимирович Орлов', 'Виктория Сергеевна Белова', 'Александр Сергеевич Иванов'];
@@ -72,7 +72,8 @@ function sessionItem(data, mode) {
 export async function loadSessionManagers({ signal } = {}) {
   aborted(signal);
   if (!realSessionEnabled) return mockManagers.map(manager => ({ ...manager }));
-  const data = await sessionRequest('managers', { signal });
+  assertSessionTransport();
+  const data = await catalogRequest('managers', { signal });
   if (!Array.isArray(data?.items)) throw new Error('Некорректный ответ списка менеджеров.');
   return data.items.filter(item => Number.isSafeInteger(item.id) && item.id > 0 && typeof item.name === 'string' && item.name.trim());
 }

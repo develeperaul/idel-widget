@@ -1,5 +1,102 @@
 # Реестр событий виджетов «Идель»
 
+19.10.2026: колесо/тачпад и перетаскивание в ряду секций/объектов ProjectPanel
+выполняют только локальную горизонтальную прокрутку. Нового внешнего события нет;
+клик после drag подавляется, поэтому камера/описание не запрашиваются от прокрутки.
+Обычный клик/Enter сохраняют существующие события выбора и формат параметров.
+Полосы прокрутки скрыты общим CSS без изменения протокола Unreal. Проверено
+в Chrome; новая прокрутка в Play/packaged build ещё не подтверждена.
+
+17.10.2026, Play на Main_WP, скриншот 21:14 Windows: для Секции 1 подтверждён
+приём `scene.requestPresentationCamera` в ветке перед обработчиком:
+`{chapter:'project',scope:'object',id:1741,target:'section-1',cameraCoordinates:'222',sceneObjectKey:null}`.
+Вывод временного Print подтверждает получение события, но не движение камеры.
+Переход пока не работает по сообщению пользователя; наличие точки 222 на Main_WP
+ещё проверяется (ранее точка осмотрена на L_Layout_Test).
+
+17.10.2026, скриншот 21:05 Windows: в нашем wbp-idelpreview собрана ветка
+Contains `"method":"scene.requestPresentationCamera"` → Branch True →
+HandlePresentationCameraCommand(JsonString=Message после Replace IDEL: на пусто).
+Функция разбирает params.cameraCoordinates, ищет PointID у BPC_EnvViewpoint
+акторов BP_EnvViewpoint и вызывает BP_OrbitCameraPawn.MoveToViewpoint, затем Break.
+Это подключение по графу редактора; Compile/Save новой ветки, приём события
+и движение камеры в Play/packaged build ещё не подтверждены. Полные пины и
+этапы подтверждения — в начале PANELS.md. Прежнее «ветка не подключена» ниже
+описывает состояние до этой сборки; рабочей интеграцией пока не считать.
+
+Актуально 16.10.2026: при смене главы ui.presentation.state передаёт projectTarget=null и null для всех chapterTargets; ui.presentation.description передаёт visible=false, description=[], target=null. Начальный выбор пуст. Ранее описанное восстановление текста/точки при возврате отменено новым требованием пользователя. Явный клик или selectObject по-прежнему выбирает объект. setState принимает null без отправки обратных событий; прежний Blueprint передачи params сохраняется.
+
+16.10.2026: список объектов глав больше не подменяется локальными кнопками до API/при ошибке. «Повторить» в строке ошибки выполняет локальный повтор загрузки через текущий gateway, нового внешнего события кнопка не отправляет. Формат ui.presentation.description и Blueprint не изменены.
+
+16.10.2026: BrowserNavigation теперь повторяет ui.presentation.description при возврате в главу после загрузки её контента: title/description/visible относятся к сохранённому выбранному объекту. При пустом тексте visible=false. Формат и Blueprint прежние. Показ и смена текста BrowserDescription подтверждены записью пользователя в Play; исправление возврата пока требует повторной проверки. Полная рабочая цепочка в начале PANELS.md.
+
+## Общие данные и описание — 16.10.2026
+
+| Источник | Событие | Параметры | Действие / Unreal |
+|---|---|---|---|
+| Панель-потребитель | data.request | requestId, path | Переслать params в BrowserSession IdelData.handleRequest; Blueprint ещё не проверен |
+| BrowserSession | data.response | requestId, index, total, chunk | Каждую часть передать IdelData.receive всех потребителей |
+| BrowserSession | data.cache.status | started, running, tasks | Публичный прогресс очереди; локальный индикатор |
+| BrowserNavigation | ui.presentation.description | title, description[], room, visible, view, target | setState BrowserDescription и UMG Visible/Collapsed |
+
+IdelWidget.selectObject({chapter,target}) или {chapter,id} выбирает существующую точку без повторного движения камеры. Описание самостоятельно API не вызывает. Выход не сбрасывает общий кэш. Протокол, полные JS-обёртки и статусы: [DATA_CACHE.md](DATA_CACHE.md).
+
+## Отдельные объекты презентации — Vue, 15.10.2026
+
+Navigation дополнительно отправляет `scene.requestPresentationCamera` только
+при непустом cameraCoordinates в API: `{chapter,scope,id,target,cameraCoordinates,
+sceneObjectKey}`. scope=chapter берёт общую камеру раздела из UF_MAIN_CAMERA,
+scope=object — камеру выбранного элемента из CAMERA_COORDINATES. id здесь ID
+соответствующей записи API, target=null для главы или ключ точки для элемента.
+Строка камеры передаётся без преобразования. Подключать к уже существующему
+действию дизайнерской точки; в Unreal эта новая ветка пока не подключена.
+
+`panel=navigation` и `panel=description` реализованы; инструкция — начало PANELS.md.
+Дополнительное событие `ui.presentation.state` с params
+`{view,categories,projectTarget,chapterTargets}` отправляет Navigation после
+пользовательского выбора главы/объекта/категории, Toolbar после ui.info/scene.home.
+Unreal должен передать params через IdelWidget.setState в Toolbar, Navigation
+и Description и переключить видимость по view. setState работает без эха.
+Это реализованное исходящее событие, приём в Unreal ещё не подключён.
+Прежние ui.selectChapter, scene.selectProjectTarget, scene.selectChapterTarget,
+scene.setInfrastructure и scene.requestInteriorView сохранены. У кнопки повтора
+описания внешнего события нет: она повторяет GET API в своём Browser.
+
+15.10.2026, подтверждено пользователем в Play: `ui.session.end` из BrowserExit
+→ `IdelSession.reset({save:false})` в BrowserSession → `session.ended`
+→ переключение панелей, CleanupSessionScreenshots, resetMaterials в Toolbar
+и Saved. Оба PNG текущей сессии удалены, в том числе после удаления карточки
+из Vue; после нового входа Saved пуст. Прежние статусы «выход/удаление PNG
+не подключены» ниже относятся к предыдущим этапам. Воспроизводимые узлы,
+пины и сценарий — раздел «Очистка снимков при выходе» в начале PANELS.md.
+Ошибки удаления, сохранение избранного при выходе и packaged build не проверены.
+
+## Отдельная кнопка выхода panel=exit — 15.10.2026
+
+| Элемент | Событие | Параметры | Локальное действие | Unreal |
+| --- | --- | --- | --- | --- |
+| Красная иконка выхода по Figma 364:62688, BrowserExit | `ui.session.end` | `{}` | Только запрос; данные и файлы не очищает | Принимать в On Console Message (BrowserExit), направить владельцу BrowserSession. Пока не подключено в Play |
+
+Кнопка располагается отдельным Browser справа внизу по выбору пользователя.
+В Saved текстовой кнопки нет (предыдущая правка отменена). Существующий full
+диалог выхода и session.ended не изменены. URL/UMG — начало PANELS.md.
+
+15.10.2026: пользователь подтвердил в Play `ui.saved.removeScreenshot {id}` →
+вызов `IdelApartments.removeScreenshot(id)` в BrowserToolbar → повторная
+передача `IDEL_MATERIALS:` в BrowserSaved. После повторного открытия карточка
+не возвращается. PNG остаётся на диске, путь — в SessionScreenshotPaths.
+Выход в отдельных панелях ещё не реализован: кнопка выхода есть только в full,
+а session.ended отправляет экземпляр с установленной сессией, не любой Browser.
+
+15.10.2026: в Play по скриншоту пользователя подтверждена передача снимков
+BrowserToolbar → BrowserSaved при `ui.favorites`: исходный Browser отправляет
+`console.log("IDEL_MATERIALS:"+JSON.stringify(IdelApartments.getMaterials()))`,
+Unreal удаляет ровно префикс `IDEL_MATERIALS:` и вызывает в BrowserSaved
+`window.IdelApartments.setMaterials(<JSON-объект>);`. Это отдельный служебный
+ответ, не событие `IDEL:` с полем method. Подтверждена карточка одного PNG;
+удаление `ui.saved.removeScreenshot`, очистка файлов и packaged build ещё не
+подтверждены. Воспроизводимая схема — первый раздел PANELS.md про снимки.
+
 Сверено с исходниками 27.09.2026. Реестр пополняется при добавлении экранов и кнопок.
 Здесь описано фактическое поведение Vue. Отправка команды не означает, что её
 обработчик уже подключён в Unreal. Выполнение перечисленных команд в Unreal

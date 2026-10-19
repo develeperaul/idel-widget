@@ -1,5 +1,470 @@
 # Отдельные панели в Unreal
 
+## Прокрутка без полос — 19.10.2026
+
+В общем `widget.css` скрыты нативные полосы всех элементов: `scrollbar-width:none`
+и `::-webkit-scrollbar` с display:none/нулевыми размерами. Приоритет правил
+перекрывает прежние локальные `scrollbar-width:thin`. Overflow и сами области
+прокрутки сохранены, в том числе описание, списки менеджеров/квартир, галерея.
+
+В `ProjectPanel.vue` общий ряд `.project-targets` для project/architecture/park/
+courtyard/entrance использует overflow-x:auto, overflow-y:hidden, ограничение
+ширины контейнером. Колесо мыши переводится в горизонтальное перемещение;
+горизонтальное движение тачпада также поддерживается. Ctrl+wheel не перехватывается.
+Мышью можно тянуть ряд за кнопки: после порога 8 px включается захват указателя,
+клик после перетаскивания подавляется. Обычный клик и Enter по кнопке сохранены.
+Для touch оставлена нативная прокрутка `touch-action:pan-x` без JS-перетаскивания.
+Изолированный BrowserNavigation и полный интерфейс используют один компонент.
+
+Данные — существующий API объектов глав, новых маршрутов/команд/параметров нет.
+URL, UMG-размеры, видимость и обратный setState не меняются. Полный архив:
+`idel-widget-2026-10-19-hidden-scrollbars-full.zip`. Установка: остановить Play,
+распаковать содержимое поверх `D:/UE_PROJECTS/IDEL/Content/idel-widget/`, заменить
+файлы. Blueprint не изменять. Для проверки открыть главу с достаточным количеством
+объектов, прокрутить к последнему, затем выбрать его; карточка и событие выбора
+должны появляться только от клика, а не от перетаскивания. Открыть длинное описание
+и проверить вертикальную прокрутку без видимой полосы.
+
+Подтверждено в Chrome по локальной сборке 19.10: горизонтальное колесо/перетаскивание,
+отсутствие выбора при drag, выбор кликом/Enter и прокрутка фокуса к последней кнопке,
+переполнение ряда при 910×180 и 390×180, скрытые полосы и сохранённая вертикальная
+прокрутка BrowserDescription 297×280. npm run build, npm test, panels.test.cjs и
+presentation-panels.test.cjs прошли. Сенсорный свайп на устройстве, Unreal Play
+и packaged build ещё не проверены.
+
+## Обработчик камеры: начало сборки — 16.10.2026
+
+17.10.2026, скриншот пользователя 21:14 Windows в Play: временный Print String
+между True проверки события и вызовом обработчика вывел JSON
+`scene.requestPresentationCamera`, params: chapter=`project`, scope=`object`,
+id=1741, target=`section-1`, cameraCoordinates=`222`, sceneObjectKey=null.
+Подтверждены отправка события для Секции 1 и прохождение ветки до Print в Unreal;
+разбор JSON внутри функции, наличие найденного компонента и движение камеры
+этим не подтверждены. Пользователь ранее сообщил, что перехода нет.
+На скриншоте активен `Main_WP` (Play In Editor), а точка с PointID=222 ранее
+осматривалась на `L_Layout_Test`. Наличие такой точки в загруженном Main_WP
+нужно проверить; отсутствие пока не доказано. Дизайнерские точки не менять
+и не переносить без отдельного согласования. Print String — временная
+диагностика, после проверки убрать, восстановив прямой True → обработчик.
+
+17.10.2026, скриншот пользователя 21:05 Windows: в Event Graph добавлены
+Contains с Substring=`"method":"scene.requestPresentationCamera"`, Branch
+и вызов `Handle Presentation Camera Command` (Target=self). Contains.Return Value
+→ Condition Branch; True → белый вход вызова; Return Value существующего Replace
+(From=`IDEL:`, To=пусто) → Json String вызова, напрямую, без Append.
+Search In Contains и Source String Replace имеют входящие провода от прежней
+цепочки Message; их исходный узел и точка входа белого провода находятся вне
+этого кадра, ранее указано подключать от False проверки ui.presentation.description
+именно BrowserNavigation. Новая ветка на этом скриншоте ещё не скомпилирована
+(жёлтый значок Compile), `1 Unsaved`; прежнее подтверждение Compile/Save относится
+к состоянию до добавления ветки. Следующая проверка: Compile без ошибок → Save →
+Play → выбрать объект API с cameraCoordinates, совпадающим с PointID точки
+BP_EnvViewpoint на активном уровне. Ожидается описание объекта и переход к его
+камере. Значение 222 — ранее показанный пример точки, не подтверждение значения
+конкретного элемента API. Проверка движения в Play ещё не выполнена.
+
+17.10.2026, скриншот пользователя 20:50 Windows: `wbp-idelpreview` без
+звёздочки, Compile зелёный, `All Saved` — сохранение собранного обработчика
+подтверждено в редакторе. В Event Graph у Branch, Condition которого приходит
+из Contains с Substring=`"method":"ui.presentation.description"`, выход False
+свободен. Это точка расширения цепочки BrowserNavigation; другой Branch справа
+проверяет `"visible":true` и управляет BrowserDescription — его не менять.
+Ветка события камеры ещё не подключена, выполнение в Play не подтверждено.
+
+17.10.2026, скриншоты пользователя 20:47 Windows: добавлен `Get Player Pawn`
+с Player Index=0; Return Value → Object `Cast To BP_OrbitCameraPawn`.
+True Branch сравнения PointID → белый вход этого Cast; успешный белый выход
+Cast → белый вход `Move to Viewpoint`; `As BP Orbit Camera Pawn` → Target
+вызова; `As BPC Env Viewpoint` предыдущего Cast → Viewpoint вызова.
+Белый выход Move → Break `For Each Loop with Break`; Completed цикла
+остаётся свободным. На более позднем из двух скриншотов Compile зелёный,
+у Cast компонента синяя NOTE (текст примечания не раскрыт). Сохранение
+не подтверждено: `1 Unsaved`. Сам обработчик собран по видимым проводам,
+но его вызов из BrowserNavigation и переход в Play ещё не подтверждены.
+Проверка следующего этапа: сохранить наш wbp-idelpreview, подключить вызов
+только для scene.requestPresentationCamera с JSON без IDEL:, затем в Play
+выбрать реальный объект с известным PointID. Дизайнерские Blueprint не менять.
+
+17.10.2026, подтверждено скриншотом пользователя (20:41 Windows):
+`Get Component by Class.Return Value` → `Cast To BPC_EnvViewpoint.Object`;
+белый `For Each Loop with Break.Loop Body` → вход Cast; успешный белый выход
+Cast → вход Branch сравнения. `As BPC Env Viewpoint` → `Target` Get Point ID;
+`Point ID` → первый вход Equal (Name). Локальный Get `PresentationCameraId`
+(String) → String to Name → второй вход Equal (Name); результат равенства
+→ `Branch.Condition`. Оба выхода Branch пока свободны. Это подтверждение
+соединений в редакторе; выполнение сравнения, Compile/Save, Play ещё не
+подтверждены (`1 Unsaved`). MoveToViewpoint и Break пока не подключены.
+
+Состояние 17.10.2026, скриншот пользователя с часами Windows 10:19:
+после `Set PresentationCameraId` белый провод идёт в `Get All Actors Of Class`
+(Actor Class=`BP_EnvViewpoint`), затем в Exec `For Each Loop with Break`.
+`Out Actors` подключён к `Array` цикла; `Array Element` → `Target`
+`Get Component by Class` (один компонент, Component Class=`BPC_EnvViewpoint`).
+`Loop Body`, `Break`, `Completed` и `Return Value` получения компонента пока
+свободны. Сравнение PointID и вызов MoveToViewpoint ещё не реализованы.
+Compile/Save и Play не подтверждены (`1 Unsaved`). Это подтверждение сборки
+части графа в редакторе, не выполнения обработчика.
+
+Подтверждено скриншотом пользователя в редакторе (19:37 по времени Windows
+на скриншоте): в нашем `wbp-idelpreview` создана функция
+`HandlePresentationCameraCommand`, вход `JsonString` типа **String**.
+Внутри добавлен `Load Json from String`: белый выход входного узла функции
+подключён к белому входу Load; розовый выход `Json String` входного узла
+подключён напрямую к `Json String` Load. Дополнительный Get Json String и
+преобразование Boolean в String не нужны.
+
+Состояние на 16.10.2026: два прямых провода — белый и розовый; выходы Load
+`Json Object` и `Success` пока свободны. На скриншоте `1 Unsaved`, успешные
+Compile/Save не подтверждены. Это незавершённый обработчик, к Event Graph
+ещё не подключён; разбор params, поиск PointID и переход камеры не реализованы.
+Версия/архив виджета не установлены по этому скриншоту. Проверки Play нет.
+
+Продолжение 17.10.2026, подтверждено скриншотом пользователя: после Load
+добавлен Branch с Condition от его Success; True ведёт в Get Field с
+Field Name=`params`. После него второй Branch с Condition от Success,
+True ведёт в Get Field с Field Name=`cameraCoordinates`. После второго
+Get Field третий Branch с Condition от его Success. Выход Value второго
+Get Field ещё серый (тип не задан), True последнего Branch свободен.
+Синий провод к Json Object второго Get Field должен приходить именно от
+Value Get Field `params`, не напрямую от Load; на скриншоте провод идёт
+на одной высоте с несколькими пинами, источник требует дополнительной сверки.
+Compile/Save не подтверждены (`1 Unsaved`), подключение к Event Graph и
+переход камеры в Play не проверены. Предыдущая запись о свободных выходах
+Load описывает только состояние 16.10, а не текущий граф.
+
+Следующий подтверждённый этап — скриншот пользователя 17.10.2026 с часами
+Windows 09:39: `PresentationCameraId` находится в Local Variables функции
+`HandlePresentationCameraCommand`, тип String. `Value` Get Field
+`cameraCoordinates` стал розовым и подключён к значению
+`Set PresentationCameraId`; True последнего Branch подключён к белому входу
+Set. На этом скриншоте также видно прямое соединение `Value` Get Field
+`params` → `Json Object` Get Field `cameraCoordinates`: прежняя неоднозначность
+источника снята. Белый выход Set свободен. Поиск компонентов и вызов камеры
+ещё не добавлены, Compile/Save и Play не подтверждены (`1 Unsaved`).
+
+## Исследование Point ID — 16.10.2026, только просмотр
+
+Через Windows App в Unreal Editor проверен уровень `L_Layout_Test`: экземпляр
+`BP_EnvViewpoint`, компонент `Viewpoint`, раздел Details `View Environment`,
+`Point ID = 222`. Открыт `/Game/OrbitCameraSystem/Camera/BPC_EnvViewpoint`:
+переменная `PointID` имеет тип **Name**, родитель — `BPC_Viewpoint`.
+У родителя существуют `GetResolvedViewData` и `CopyFromViewpoint`.
+Поиск Find in Blueprints по `GetResolvedViewData` показывает её вызов внутри
+`/Game/OrbitCameraSystem/Camera/BP_OrbitCameraPawn`, функция `MoveToViewpoint`.
+Это подтверждение структуры в редакторе, не проверка движения в Play.
+Вход `MoveToViewpoint` проверен в редакторе после открытия пользователем другого
+окна Blueprint: Access Specifier = Public; единственный вход `Viewpoint` —
+ссылка на объект компонента `BPC_Viewpoint`, выходных параметров нет.
+Белая цепочка начала функции: `MoveToViewpoint` → `Set Current Viewpoint` →
+`Get Resolved View Data` → `Set View Data` → `Set Is Orbiting` (false) →
+`Set Is Panning` (false) → `Set Anchor Location` → `Set Target Focus Location`.
+Данные: вход `Viewpoint` → значение `Current Viewpoint`; выход установленного
+`Current Viewpoint` → `Target` узла `Get Resolved View Data`; его `Resolved` →
+`View Data`. Из `Break S Resolved View Data` выход `Focus Location` подключён
+к `Anchor Location` и `Target Focus Location`. Продолжение функции полностью
+не изучено; алгоритм анимации и вызов маркером в Play не проверялись.
+Вызывающая цепочка маркера и поиск по ID ещё требуют просмотра.
+Рабочая интеграция по этим сведениям пока не подтверждена.
+
+Предлагаемое подключение, **ещё не реализовано**: в нашем обработчике получить
+`params.cameraCoordinates`, преобразовать строку в Name, найти компонент
+`BPC_EnvViewpoint` с равным `PointID` и передать ссылку на него в пин `Viewpoint`
+существующего `MoveToViewpoint`; `Target` вызова должен быть действующим
+`BP_OrbitCameraPawn` игрока. Это потомок `BPC_Viewpoint`, поэтому функция
+принимает его как базовый тип. ID не подставлять непосредственно в объектный
+пин. Способ перечисления точек и получения действующего Pawn ещё сверить;
+при отсутствии точки/невалидном Pawn переход не вызывать. Ничего в
+дизайнерском `MoveToViewpoint` для этого менять не требуется.
+
+Дизайнерские Blueprint разрешено только читать. Новую маршрутизацию реализовывать
+в наших интеграционных Blueprint, вызывая существующий переход. Сначала сверить
+сигнатуру функции и способ получения компонента; не заменять дизайнерскую камеру.
+Параметр события `scene.requestPresentationCamera.params.id` — ID записи API,
+а строка камеры приходит в `params.cameraCoordinates`; не считать API ID равным
+`PointID`. Применение строки `cameraCoordinates` как Point ID — сценарий пользователя,
+который ещё нужно проверить на одном реальном элементе и в Play.
+
+Воспроизведение просмотра: выбрать `BP_EnvViewpoint` в Outliner уровня
+`L_Layout_Test` → компонент `Viewpoint` → сверить `Point ID` в Details;
+открыть `BPC_EnvViewpoint` в `/Game/OrbitCameraSystem/Camera` и проверить тип
+`PointID`; через Find in Blueprints найти `GetResolvedViewData` и открыть
+`BP_OrbitCameraPawn.MoveToViewpoint`. Ожидается увидеть существующий вызов
+получения данных точки. Версия/архив установленного виджета для этого просмотра
+не определялись; Blueprint-подключения и JavaScript не изменялись.
+
+## Актуально: сброс выбранной точки — 16.10.2026
+
+Новое требование пользователя заменяет прежнее восстановление выбранного объекта при возврате. Начальные projectTarget и все chapterTargets равны null. При любой смене view (клик главы или setState из Unreal) прежние точки сбрасываются; начальный вход и reset сессии также не выбирают точку. Выбор появляется только после клика объекта либо явного IdelWidget.selectObject/setState с target.
+
+Смена главы в Navigation отправляет ui.presentation.state с projectTarget=null и chapterTargets={architecture:null,park:null,courtyard:null,entrance:null}, затем ui.presentation.description с пустым текстом, visible=false, target=null. Уже подключённая ветка BrowserDescription сворачивает карточку. Общая камера главы по-прежнему вызывается, отдельная камера точки автоматически не выбирается. setState принимает null для снятия выбора без эха. Если в Unreal отдельно реализована подсветка нативного Actor, её сброс необходимо связать с этим состоянием; такая подсветка ещё не проверена.
+
+Проверка: открыть «О проекте» — ни одна кнопка объекта не выделена; выбрать Секцию 1 — выделение/описание появляются; перейти в МОПы — выбор секции снят и описание скрыто, ни один МОП не выбран; вернуться — Секция 1 не восстанавливается. Выбрать объект можно новым кликом. Схема передачи данных/видимости BrowserDescription не меняется. Более ранние инструкции о восстановлении ниже — история прежнего требования.
+
+## Объекты только из API — 16.10.2026
+
+Build прошёл с ранее описанным временным обходом чтения Node. Браузерные проверки прошли: presentation-data-state.test.cjs (задержка без заглушек, отказ/повтор, объект только из API, пустой раздел), presentation-panels.test.cjs (включая возврат описания), panels.test.cjs и npm test. Установка в Play этой версии ещё не подтверждена. Патч idel-widget-2026-10-16-server-objects-only.zip содержит build/app.js, project.css и инструкции; распаковать поверх текущей установки без удаления остальных файлов. Blueprint остаётся прежним.
+
+Убрана подстановка локальных projectTargets/detailChapters.targets в отображаемый список объектов: до ответа API кнопки секций/объектов не рисуются. Показывается «Загрузка объектов…», при отказе — ошибка и «Повторить», при успешном пустом items — «В этом разделе пока нет объектов». Повтор читает через тот же gateway BrowserSession (или напрямую в standalone), без изменения Blueprint. Тексты описаний остаются только из API. Названия шести глав и категории инфраструктуры — локальная конфигурация управления, а не подставной ответ сервера.
+
+В коде отдельно сохранён явно включаемый деморежим входа realSession=false для тестов. В поставляемом index.html realSession=true; эта правка объектов не удаляет деморежим авторизации. Идентификаторы первоначального выбора в state не считаются загруженными объектами и не порождают кнопки без API.
+
+## BrowserDescription: текст и возврат в главу — 16.10.2026
+
+Обновление поставляется патчем idel-widget-2026-10-16-description-return.zip: build/app.js и инструкции, без неизменённых медиа. Распаковать поверх установленного idel-widget с заменой файла, сохранив assets и остальные файлы; остановить Play до замены. panels.test.cjs прошёл отдельно. npm test повторно остановился на page.goto timeout 90s; его прохождение в этой сборке не подтверждено.
+
+Локальная проверка исправления: presentation-panels.test.cjs прошёл с регрессией возврата entrance → location → entrance и проверкой пустого текста. В открытой локальной вкладке http://127.0.0.1:5175/?mode=unreal&panel=navigation&data=standalone с живым API проверено: Секция 1 → Локация → О проекте, без повторного клика пришло ui.presentation.description с title=Секция 1, visible=true, «21 этаж», «365 квартир». Это подтверждение отправки восстановленного текста в браузере; отдельный UMG-показ после обновления ещё проверить в Play. Дополнительный data-hub.test.cjs остановился на тайм-ауте открытия страницы владельца, не на проверке описания.
+
+Обычная сборка дважды остановилась на обрезанном асинхронном чтении session.js; отдельные readFileSync/синтаксические проверки читали полный файл. Сборка прошла с временным Node preload, заменяющим fs.promises.readFile на синхронное чтение; preload находится только в /private/tmp и в архив не включается. Runtime приложения этого обхода не требует.
+
+Запись экрана пользователя подтвердила в Play показ и смену описаний секций. Возврат после другой главы оставлял карточку скрытой: Navigation отправлял visible=false, но не восстанавливал описание сохранённого объекта. Новая версия selectChapter ждёт контент и повторяет ui.presentation.description для выбранного объекта. Устаревшие переключения отсекаются проверкой главы/номера выбора. Пустой текст оставляет карточку скрытой. Исправление возврата ещё требует проверки в Play.
+
+BrowserDescription: Web Browser, Is Variable/Supports Transparency=true, URL `file:///D:/UE_PROJECTS/IDEL/Content/idel-widget/index.html?mode=unreal&panel=description`, anchors/alignment=(0,0), position=(40,420), size=297×280, начальная Visibility=Collapsed. Размещение сверять с DPI.
+
+В wbp-idelpreview: On Console Message (BrowserNavigation) → Branch data.request, его False → Branch ui.presentation.description. Для второго Branch: Contains Search In=Message BrowserNavigation, Substring=`"method":"ui.presentation.description"`, Return Value=Condition. True белым проводом → Execute Javascript Target=BrowserDescription. Script Text=Append: A=`window.IdelWidget.setState((`, B=Message после Replace From=`IDEL:` To=пусто, C=`).params);`.
+
+Белый выход Execute Javascript → Branch видимости; Condition=Contains с Search In=тот же Message BrowserNavigation, Substring=`"visible":true`. True → Set Visibility Target=BrowserDescription, Visible; False → Set Visibility того же Target, Collapsed. Не запускать эту проверку от On Console Message BrowserDescription: полученные params он не повторяет. Все белые входы должны быть соединены; одного Script Text недостаточно. Временные Print String не нужны для работы.
+
+Проверка новой версии: О проекте → Секция 1 → Локация → О проекте: описание Секции 1 возвращается без повторного клика. Для Секции 6 с пустым текстом карточка не появляется. Восстанавливается текст; переход главы по-прежнему использует общую камеру главы, камера секции дополнительно не вызывается. Существующий Blueprint менять не нужно.
+
+## Актуальное изменение 16.10.2026: единый кэш
+
+Отдельные панели по умолчанию получают общие данные от BrowserSession через Unreal. Перед установкой новой сборки подключить data.request/data.response по [DATA_CACHE.md](DATA_CACHE.md). Прежние описания самостоятельных API-запросов панелей ниже относятся к предыдущей версии/standalone. BrowserDescription получает только готовый текст через setState. BrowserSession сохранять живым после Collapsed и logout. Новый обмен в Play ещё не подтверждён.
+
+## Объекты презентации: новые отдельные Browser — 15.10.2026
+
+Уточнение пользователя: дизайнер уже настроил точки и переходы к нужным сценам,
+нажатие существующих точек вручную проверено им. Нужно вызвать эти же действия,
+не создавать новые Camera Actor/движение камеры. Имена действующих Blueprint
+и функции перехода ещё нужно сверить в самом Unreal.
+
+Камеры разделены: GET /api/presentation/chapters → cameraCoordinates из
+UF_MAIN_CAMERA раздела — общий вид при выборе главы. GET объектов →
+cameraCoordinates из CAMERA_COORDINATES элемента — вид конкретной точки.
+Значения строковые, не разбираются как координаты и не заменяются на target/ID.
+В panel=navigation выбор с непустой камерой отправляет дополнительное событие
+scene.requestPresentationCamera: `{chapter,scope:'chapter'|'object',id,target,
+cameraCoordinates,sceneObjectKey}`. Для общей камеры id=ID раздела, target=null;
+для точки id=ID элемента API, target=ключ кнопки. При пустом поле событие камеры
+не отправляется; отсутствие камеры не мешает показу описания. setState камерных
+событий не отправляет. Передавать cameraCoordinates в существующую функцию
+дизайнерской точки в Unreal; реальные переходы этой цепочкой ещё не проверены.
+
+15.10.2026 чтением живого API подтверждены тестовые значения пользователя:
+раздел project ID 133 → "111"; courtyard-first-stage ID 1721 → "222";
+courtyard-second-stage ID 1775 → "111". Это проверка транспорта строк,
+не подтверждение существования камер с такими ID в Unreal.
+Секции из /sections и элементы project могут иметь одинаковый target:
+загрузчик объединяет их в одну кнопку, поля камеры элемента дополняют секцию,
+непустое описание сохраняется. Повторы внутри одного ответа по-прежнему ошибка.
+
+В Vue реализованы URL `?mode=unreal&panel=navigation` и
+`?mode=unreal&panel=description`. Они заменяют прежний план ниже, где эти URL
+помечены отсутствующими. Реальная маршрутизация в Blueprint ещё не выполнена.
+
+- BrowserNavigation: 910×180 CSS px, низ по центру, anchors=(.5,1),
+  alignment=(.5,1), position=(0,-40) при DPI 1; размер UMG сверять с DPI проекта.
+  Только контекстный ряд фильтров/объектов и шесть глав: Локация, О проекте,
+  Архитектура, Внешний пояс, Внутренний двор, МОПы. Начальное view=location.
+- BrowserDescription: 297×280 CSS px, слева под окружением, ориентир
+  position=(40,420), anchors/alignment=(0,0); высоту/позицию сверить с реальным
+  BrowserEnvironment, длинный текст прокручивается. Описание выбранного объекта
+  и кнопка «Вид» для МОПов. Начальное view=project.
+- Оба Browser: Supports Transparency=true, Is Variable=true, начальная
+  Visibility=Collapsed. Фон 3D, камера, погода и Toolbar не дублируются.
+
+Данные: существующий `usePresentationContent`: GET /api/sections и
+GET /api/presentation/objects?chapter=project для проекта, тот же маршрут
+с chapter=architecture|park|courtyard|entrance для остальных глав.
+С 16.10.2026 Navigation читает эти наборы через BrowserSession; Description получает готовые title/description без API. Локация использует локальные идентификаторы категорий; размещение маркеров принадлежит Unreal. При пустом описании BrowserDescription должен быть Collapsed (см. DATA_CACHE.md).
+
+Синхронизация (план подключения, не готовая Blueprint-интеграция):
+1. Toolbar на ui.info и scene.home, Navigation при выборе главы/объекта/фильтра
+   дополнительно отправляют `ui.presentation.state` с params:
+   `{view,categories,projectTarget,chapterTargets}`. Существующие события сцен
+   сохраняются. Телефон, токен и материалы в этом сообщении отсутствуют.
+2. On Console Message (BrowserToolbar) и (BrowserNavigation): выделить обычный
+   IDEL JSON, для method=ui.presentation.state передать объект params всем
+   трём экземплярам: Toolbar, Navigation, Description через Execute Javascript
+   с правильным Target и `window.IdelWidget.setState(<params>);`.
+   setState не отправляет обратных событий, петли не создаёт.
+3. view=home: Navigation и Description Collapsed. view=location: Navigation
+   Visible, Description Collapsed. Для project/architecture/park/courtyard/entrance:
+   Navigation Visible, Description — только при ui.presentation.description visible=true. На session.ended оба Collapsed; перед новым входом установить
+   согласованное начальное состояние. Toolbar обновлять вместе с ними, чтобы
+   повторное нажатие info корректно возвращало home.
+4. Камеры/Actor, scene.setInfrastructure, scene.selectProjectTarget,
+   scene.selectChapterTarget и scene.requestInteriorView подключаются отдельно
+   к реальным объектам. Наличие UI не подтверждает движение камеры в Play.
+
+Проверять: info открывает навигацию; смена главы меняет контекстный ряд и
+описание; выбор МОП/секции меняет текст; Домой скрывает обе панели и возвращает
+Toolbar в home; выход скрывает их. Play/packaged build ещё не проверены.
+
+15.10.2026: пользователь подтвердил регистрацию нового клиента через
+BrowserSession в Play, вход в презентацию, создание клиента в Битриксе и
+привязку MANAGER. Сценарий воспроизведения —
+[MANAGERS_CLIENTS.md](../idel-backend/docs/MANAGERS_CLIENTS.md#регистрация-из-unreal--подтверждение-15102026).
+Это не подтверждает передачу токена между Browser, серверное избранное,
+загрузку PNG клиенту или packaged build.
+
+## Очистка снимков при выходе — Play, 15.10.2026
+
+Подтверждение пользователя: оба PNG удалились (включая снимок, ранее удалённый
+из списка Vue), после нового входа «Сохранённое» пустое. Точная версия архива
+не сверена. Удаление чужих/старых PNG, ошибки удаления и packaged build отдельно
+не проверены. Эта запись актуализирует более ранние пометки «ещё не подключено».
+
+Предусловия: каждый успешно полученный PNG в FinishScreenshotCapture добавляется
+через Add Unique в переменную виджета SessionScreenshotPaths (String Array).
+При удалении карточки этот массив не менять. Выход BrowserExit вызывает
+`window.IdelSession.reset({save:false});` в BrowserSession; очистка запускается
+в ветке `session.ended`, а не по самому нажатию кнопки.
+
+Функция `/Game/wbp-idelpreview.CleanupSessionScreenshots`, без входов:
+1. Создать локальную PathsToDelete типа String Array (Local Variables функции).
+   Вход функции → Set PathsToDelete; значение Set получает Get SessionScreenshotPaths.
+2. Белый выход Set → Exec For Each Loop. Array цикла получает отдельный
+   Get PathsToDelete. Копия нужна, чтобы основной массив можно было менять при обходе.
+3. Loop Body → Delete File (Blueprint File Utils), Filename=Array Element,
+   Must Exist=false, Even If Read Only=false. Никакого Delete Directory.
+4. Белый выход Delete File → Branch, Condition=Return Value удаления.
+   True → Remove Item: Target Array=Get SessionScreenshotPaths, Item=Array Element
+   цикла. False → Print String: In String=Array Element, чтобы видеть неудачный путь.
+   Не очищать весь SessionScreenshotPaths: пути с ошибками остаются для повтора.
+5. EventGraph: в конце подтверждённой ветки session.ended после переключения
+   видимости вызвать CleanupSessionScreenshots (Target=self), затем два
+   Execute Javascript: Target=BrowserToolbar и Target=BrowserSaved.
+   Script Text в каждом: `window.IdelApartments.resetMaterials();`.
+   Вход сессии/выход из BrowserSession описан ниже; его reset очищает собственную сессию.
+
+Проверка для воспроизведения: Compile → Save → Play → вход → два снимка;
+записать имена и пути PNG, один снимок удалить крестиком из Saved; нажать
+BrowserExit. Убедиться, что оба конкретных файла исчезли; снова войти и открыть
+Saved — список должен быть пустым. Пользователь подтвердил именно этот результат.
+На этом шаге проверка выполнялась без сохранения избранного (save:false).
+
+## Выход и видимость панелей — Play, подтверждено пользователем 15.10.2026
+
+В BrowserExit событие On Console Message → Branch с Condition от Contains:
+Search In=Message, Substring=`"method":"ui.session.end"`. True → Execute
+Javascript, Target=BrowserSession, Script Text=`window.IdelSession.reset({save:false});`.
+Это выход без сохранения избранного. Обработчик On Console Message (BrowserSession):
+первый Branch проверяет Contains `"method":"session.started"` в Message;
+True → BrowserSession Collapsed → BrowserEnvironment Visible → BrowserToolbar
+Visible → BrowserExit Visible (Set Visibility с соответствующим Target).
+False первого Branch → второй Branch с Contains `"method":"session.ended"`;
+True → BrowserSaved Collapsed → BrowserToolbar Collapsed → BrowserEnvironment
+Collapsed → BrowserExit Collapsed → BrowserSession Visible.
+Начальная видимость Designer: Session Visible, остальные четыре Collapsed.
+Пользователь сообщил «всё норм» после подключения. Отдельная очистка материалов
+Toolbar/Saved и удаление PNG пока не подтверждены, packaged build не проверен.
+
+## BrowserExit — кнопка выхода по Figma (15.10.2026)
+
+Источник: Figma `7U00j5LuevrNh4HkzqaumQ`, `364:62688` (Log out).
+Узел `141:6946` — изображение сцены, не размещение кнопки; фон в Unreal
+остаётся живой сценой. Пользователь выбрал отдельную панель справа внизу.
+URL: тот же index.html с `?mode=unreal&panel=exit`.
+SessionExitButton использует существующий `assets/apartments/exit.svg`:
+он побайтово совпал с выгруженной иконкой Figma, размер SVG 36×36.
+Кнопка 96×100 CSS px, padding 32px 30px, радиус 16px, белый фон 90%, blur 4px.
+Данные/API для отображения не нужны. Текстовой кнопки в Saved нет.
+
+Подключение (план до проверки в Play):
+1. Добавить Web Browser в Canvas `/Game/wbp-idelpreview`, назвать BrowserExit,
+   включить Is Variable и Supports Transparency.
+2. Anchors Min=Max=(1,1), Alignment=(1,1), Size=(96,100), Position=(-40,-40)
+   в единицах UMG; проверить фактический масштаб DPI проекта. ZOrder выше
+   сцены и ниже полноэкранных модальных Browser. Не растягивать на весь экран.
+3. Initial URL — рабочий путь к index.html + `?mode=unreal&panel=exit`.
+   До входа Visibility=Collapsed, после входа Visible; на окончание сессии
+   снова Collapsed. При скрытии интерфейса можно передать
+   `window.IdelWidget.setState({hidden:true})`, при показе hidden:false.
+4. On Console Message (BrowserExit) принимает обычный `IDEL:` JSON,
+   кнопка отправляет method=`ui.session.end`, params={}. Маршрутизация к
+   владельцу BrowserSession и способ завершения ещё не подключены.
+   Не считать запрос подтверждением выхода и не удалять PNG до завершения.
+
+Кнопка в браузере должна показывать красную иконку выхода и отправлять
+ровно один ui.session.end за клик. Реальный session.ended, очистка материалов,
+удаление файлов SessionScreenshotPaths, Play и packaged build требуют
+отдельной проверки. Предыдущая текстовая кнопка Saved отменена пользователем.
+
+## Снимки: рабочая передача Toolbar → Saved (Play, 15.10.2026)
+
+### Удаление карточки — подтверждено пользователем 15.10.2026
+
+В `On Console Message (BrowserSaved)` из False проверки `ui.panel.close`
+вести белый провод в Branch удаления. Его Condition: строковый Contains,
+Search In=Message этого события, Substring=`"method":"ui.saved.removeScreenshot"`.
+Тот же Message → Replace (From=`IDEL:`, To=пусто) → B строкового Append:
+A=`var m=`, C=`;window.IdelApartments.removeScreenshot(m.params.id);console.log("IDEL_MATERIALS:"+JSON.stringify(window.IdelApartments.getMaterials()));`.
+True Branch → Execute Javascript, Target=BrowserToolbar, Script Text=Append.
+Ответ `IDEL_MATERIALS:` принимает существующая цепочка Toolbar и передаёт
+в BrowserSaved через setMaterials. Пользователь подтвердил: снимок добавляется,
+удаляется и не возвращается после повторного открытия. Не терять запрос
+getMaterials в ветке сердца; без него список перестаёт обновляться.
+PNG при удалении карточки не удаляется, путь остаётся в SessionScreenshotPaths
+для будущей очистки на выходе. Очистка файлов пока не подключена.
+
+### Ограничение выхода в отдельных панелях
+
+По исходникам 15.10.2026 кнопка «Выйти из сессии» и её диалог доступны через
+кнопку только в full (вне apartments). В отдельных toolbar/saved/environment
+такой кнопки нет. App.reset отправляет session.ended только в экземпляре,
+имеющем session.value; отдельный Toolbar не наследует сессию BrowserSession.
+Для выхода в многобраузерной схеме требуется отдельно реализовать UI и
+маршрутизацию к владельцу сессии, затем очистку PNG в Unreal.
+
+Подтверждено скриншотом пользователя: BrowserSaved показывает «Скриншоты 1»,
+загруженную миниатюру и счётчик «1 снимков». Точная версия архива на Windows
+не сверена. Удаление, выход из сессии и packaged build этим не подтверждены.
+
+Предусловия: в `/Game/wbp-idelpreview` существуют BrowserToolbar
+(`?mode=unreal&panel=toolbar`) и BrowserSaved (`?mode=unreal&panel=saved`).
+Используйте фактический путь к одному и тому же index.html на Windows.
+BrowserSaved полноэкранный, начальная Visibility=Collapsed, Render Opacity=1.
+BrowserToolbar владеет снимками: камера отправляет `scene.screenshot`, Unreal
+создаёт PNG и вызывает в BrowserToolbar
+`window.IdelApartments.setScreenshot({captureId,url})` с исходным captureId
+и доступным `file:///D:/…/ScreenShot….png`. В Play подтверждались
+`IDEL_SCREENSHOT_RESULT true` и загрузка PNG. Для полёта миниатюры нужны
+включённые эффекты анимации Windows (ранее мешал reducedMotion=true).
+
+1. В EventGraph обработчик `On Console Message (BrowserToolbar)` проверяет
+   Message через Contains с подстрокой `"method":"ui.favorites"` → Condition
+   Branch. Предшествующая обработка камеры сохраняется; сюда ведёт её False.
+2. True сердца → Execute Javascript, Target=BrowserToolbar, Script Text:
+   `console.log("IDEL_MATERIALS:"+JSON.stringify(window.IdelApartments.getMaterials()));`
+   Затем Set Visibility (Target=BrowserSaved, Visible) → Execute Javascript
+   (Target=BrowserSaved, `window.IdelWidget.setState({view:"saved",hidden:false});`).
+   На показанной рабочей схеме после него Set Render Opacity=1 для BrowserSaved.
+3. Ответ приходит асинхронно новым сообщением того же BrowserToolbar.
+   False Branch сердца → отдельный Branch; его Condition получает Return Value
+   строкового Starts With: Source String=исходный Message события,
+   In Prefix=`IDEL_MATERIALS:`. Не подключать его к Source или Line события.
+4. От того же Message → строковый Replace: Source String=Message,
+   From=`IDEL_MATERIALS:`, To=пусто. Это отдельный Replace: существующий
+   Replace с From=`IDEL:` для команд камеры не менять. Ошибка From=`IDEL:`
+   здесь оставляла префикс в JavaScript, и список не наполнялся.
+5. Строковый Append с тремя входами: A=`window.IdelApartments.setMaterials(`,
+   B=Return Value нового Replace, C=`);`. Return Value Append → Script Text
+   Execute Javascript с Target=BrowserSaved. Белый True Branch из шага 3
+   подключить к этому Execute Javascript. JSON вставляется как объект,
+   без дополнительных кавычек вокруг B. Переменные для передачи не нужны.
+6. Закрытие: `On Console Message (BrowserSaved)` → Branch, Condition от
+   Contains (Search In=Message, Substring=`"method":"ui.panel.close"`);
+   True → Set Visibility (Target=BrowserSaved, Collapsed).
+
+Проверка: Compile и Save; новая Play-сессия, вход, камера, дождаться результата,
+сердце, прокрутить до «Скриншоты». Должна появиться карточка PNG и счётчик 1.
+Каждое нажатие сердца повторно получает актуальные материалы владельца.
+Проверка нескольких снимков, повторного открытия с ними и просмотра увеличенного
+изображения ещё требуется. Print String с Message перед Branch полезен лишь
+для диагностики; он не является обязательным звеном передачи данных.
+Экспериментальные прогрев, заглушка, Delay и IDEL_SAVED_READY не входят в эту
+подтверждённую цепочку; вспышка первого открытия остаётся отдельной проблемой.
+
 Это пошаговый справочник подключения каждой панели. Обновляйте его при добавлении
 экранов вместе с [реестром событий](EVENTS.md). Ниже отдельно отмечены работающие
 режимы Vue и план подключения; проверка в Unreal пока не выполнена.

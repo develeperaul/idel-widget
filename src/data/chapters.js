@@ -1,6 +1,6 @@
 import { projectTargets, defaultProjectTarget } from './project.js';
 
-// These labels and default keys are shown only until the API responds.
+// Legacy selection keys for Unreal state validation, not a fallback object list.
 const targets = entries => entries.map(([id, label, room]) => ({ id, label, room, description: [] }));
 
 export const detailChapters = {
@@ -26,5 +26,5 @@ export const detailChapters = {
 };
 
 export const objectChapterIds = ['architecture', 'park', 'courtyard', 'entrance'];
-export const defaultChapterTargets = () => Object.fromEntries(objectChapterIds.map(id => [id, detailChapters[id].defaultTarget]));
+export const defaultChapterTargets = () => Object.fromEntries(objectChapterIds.map(id => [id, null]));
 export const isChapterTarget = (chapter, target) => objectChapterIds.includes(chapter) && detailChapters[chapter].targets.some(item => item.id === target);

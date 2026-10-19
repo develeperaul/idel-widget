@@ -103,7 +103,7 @@ const chapters = {
         await page.screenshot({ path: path.join(__dirname, `preview-${chapter}-${width}.png`) });
       }
     }
-    await page.goto(base + '?mode=unreal&view=architecture');
+    await page.goto(base + '?data=standalone&mode=unreal&view=architecture');
     assert.equal(await page.locator('#welcome').isVisible(), true);
     await page.locator('#start').click();
     await page.locator('#guest').click();

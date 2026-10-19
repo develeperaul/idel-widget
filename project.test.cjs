@@ -91,7 +91,7 @@ const path = require('node:path');
       });
       await page.screenshot({ path: path.join(__dirname, `preview-project-${width}.png`) });
     }
-    await page.goto(base + '?mode=unreal&view=project');
+    await page.goto(base + '?data=standalone&mode=unreal&view=project');
     assert.equal(await page.locator('#welcome').isVisible(), true);
     await page.locator('#start').click();
     await page.locator('#guest').click();

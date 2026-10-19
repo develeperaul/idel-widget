@@ -28,3 +28,13 @@ body.ui-hidden .location-controls{visibility:hidden}
 @media(max-width:1100px){.location-controls{left:16px;right:16px;bottom:146px;width:auto;transform:none}.location-chapters{gap:6px;padding:12px;overflow-x:auto;grid-template-columns:repeat(6,minmax(104px,1fr))}.location-route{display:none}.location-chapter{font-size:11px}.location-categories{gap:6px}.location-category{gap:8px;padding:8px 10px;font-size:12px}}
 @media(min-width:601px) and (max-width:1100px){.location-controls{bottom:170px}}
 @media(max-height:600px){.location-controls{bottom:16px;left:350px;right:16px;width:auto;transform:none}.location-chapters{padding:10px;overflow-x:auto;grid-template-columns:repeat(6,minmax(94px,1fr))}.location-route{display:none}}
+
+/* Compact browsers: UMG owns their screen position and size. */
+body[data-panel=navigation]{overflow:hidden;background:transparent}
+body[data-panel=navigation] .location-controls{position:relative;left:0;right:auto;bottom:auto;width:100%;transform:none;gap:8px}
+body[data-panel=navigation] .location-view{position:relative;inset:auto}
+body[data-panel=navigation] .location-chapters{grid-template-columns:repeat(6,minmax(94px,1fr));padding:12px;gap:6px;overflow-x:auto}
+body[data-panel=navigation] .location-route{display:none}
+body[data-panel=navigation] .location-chapter{font-size:11px;line-height:1.2}
+body[data-panel=navigation] .location-categories{gap:6px}
+body[data-panel=navigation] .location-category{gap:8px;padding:8px 10px;font-size:12px}

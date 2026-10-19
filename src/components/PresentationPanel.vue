@@ -15,14 +15,22 @@ import ApartmentDetails from './ApartmentDetails.vue';
 import ApartmentSceneControls from './ApartmentSceneControls.vue';
 import ApartmentWindowView from './ApartmentWindowView.vue';
 import SavedPanel from './SavedPanel.vue';
+import SessionExitButton from './SessionExitButton.vue';
 import GalleryPanel from './GalleryPanel.vue';
 import { apartmentTitle, mediaUrl, priceText } from '../api/catalog.js';
 const props = defineProps({ panel: { type: String, default: 'full' }, preview: Boolean, endSession: Function });
 const root = ref(null);
 const apartments = useApartments();
 const apartmentState = apartments.state, hasApartmentSession = apartments.hasSession;
-const state = reactive({ minutes: 988, season: 'summer', weather: 'clear', hidden: false, view: ['saved','gallery'].includes(props.panel) ? props.panel : 'home', categories: defaultCategories(), projectTarget: defaultProjectTarget, chapterTargets: defaultChapterTargets() });
+const state = reactive({ minutes: 988, season: 'summer', weather: 'clear', hidden: false, view: props.panel === 'navigation' ? 'location' : props.panel === 'description' ? 'project' : ['saved','gallery'].includes(props.panel) ? props.panel : 'home', categories: defaultCategories(), projectTarget: defaultProjectTarget, chapterTargets: defaultChapterTargets() });
+watch(() => state.view, () => {
+  state.projectTarget = null;
+  for (const chapter of objectChapterIds) state.chapterTargets[chapter] = null;
+}, { flush: 'sync' });
 const previousView = ref('home');
+const suppliedDescription = reactive({ title: '', description: [], room: null, target: null });
+let externalSelection = 0;
+let cameraSelection = 0;
 const windowViewIndex = ref(null);
 watch(() => apartmentState.selectedId, (id, previous) => { if (id !== previous) windowViewIndex.value = null; });
 const exitOpen = ref(false);
@@ -32,17 +40,18 @@ const noticeTimers = new Map();
 let noticeSequence = 0;
 let screenshotFlight = null;
 let screenshotFlightToken = 0;
-const { content: presentationContent, load: loadPresentationContent } = usePresentationContent(() => state.view);
+const { content: presentationContent, load: loadPresentationContent, chapterIndex, loadChapters } = usePresentationContent(() => state.view, { loadChapterIndex: props.panel === 'navigation', enabled: props.panel !== 'description' });
 const detailChapter = computed(() => {
   const chapter = detailChapters[state.view];
   if (!chapter) return null;
   const entries = presentationContent[state.view]?.items;
   return { ...chapter, targets: entries
-    ? entries.map(item => ({ id: item.target, backendId: item.id, sceneObjectKey: item.sceneObjectKey, label: item.name, room: item.roomLabel || null, description: item.description }))
-    : chapter.targets.map(item => ({ ...item, description: [] })) };
+    ? entries.map(item => ({ id: item.target, backendId: item.id, sceneObjectKey: item.sceneObjectKey, cameraCoordinates: item.cameraCoordinates, label: item.name, room: item.roomLabel || null, description: item.description }))
+    : [] };
 });
 const selectedTargetId = computed(() => state.view === 'project' ? state.projectTarget : state.chapterTargets[state.view]);
 const selectedProjectTarget = computed(() => detailChapter.value?.targets.find(item => item.id === selectedTargetId.value) || { label: selectedTargetId.value || 'Объект', description: [] });
+const descriptionTarget = computed(() => ({label:suppliedDescription.title,description:suppliedDescription.description,room:suppliedDescription.room}));
 const clock = computed(() => String(Math.floor(state.minutes / 60)).padStart(2, '0') + ':' + String(state.minutes % 60).padStart(2, '0'));
 const visibilityLabel = computed(() => state.hidden ? 'Показать интерфейс' : 'Скрыть интерфейс');
 watch(() => state.hidden, value => document.body.classList.toggle('ui-hidden', value));
@@ -128,6 +137,7 @@ function action(method) {
   if (['ui.info','scene.home'].includes(method)) { apartments.close(); windowViewIndex.value = null; }
   if (method === 'ui.info') state.view = state.view === 'home' ? 'location' : 'home';
   if (method === 'scene.home') state.view = 'home';
+  if (['ui.info','scene.home'].includes(method)) sendNavigationState();
   if (method === 'ui.toggleVisibility') { state.hidden = !state.hidden; send(method, {visible: !state.hidden}); }
   else send(method);
 }
@@ -187,31 +197,87 @@ function panWindowView(direction) {
   send('scene.apartment.window.pan', { id: apartmentState.selectedId, viewIndex: windowViewIndex.value, direction });
 }
 function retryApartments() { apartments.loadMetadata().catch(() => {}); apartments.refresh(); }
+function sendNavigationState() {
+  if (!['navigation','toolbar'].includes(props.panel)) return;
+  send('ui.presentation.state', { view: state.view, categories: [...state.categories], projectTarget: state.projectTarget, chapterTargets: { ...state.chapterTargets } });
+}
+function requestPresentationCamera(scope, item) {
+  if (props.panel !== 'navigation' || typeof item?.cameraCoordinates !== 'string' || !item.cameraCoordinates.trim()) return;
+  send('scene.requestPresentationCamera', { chapter: state.view, scope, id: scope === 'chapter' ? item.id : item.backendId, target: scope === 'object' ? item.id : null, cameraCoordinates: item.cameraCoordinates, sceneObjectKey: item.sceneObjectKey || null });
+}
+function descriptionPayload(item) {
+  const description=Array.isArray(item?.description)?item.description.filter(x=>typeof x==='string'&&x.trim()):[];
+  return {title:item?.label||'',description,room:item?.room||null,visible:description.length>0,view:state.view,target:selectedTargetId.value||null};
+}
+function sendSelectedDescription(item) {
+  if (props.panel === 'navigation') send('ui.presentation.description', descriptionPayload(item));
+}
+async function selectPresentationObject({chapter,target,id}={}) {
+  if(props.panel!=='navigation'||!detailChapters[chapter]||(typeof target!=='string'&&!Number.isSafeInteger(id)))return false;
+  const selection=++externalSelection;
+  await loadPresentationContent(chapter);
+  if(selection!==externalSelection)return false;
+  const item=presentationContent[chapter]?.items?.find(item=>typeof target==='string'?item.target===target:item.id===id);
+  if(!item)return false;
+  target=item.target;
+  state.view=chapter;
+  if(chapter==='project')state.projectTarget=target;else state.chapterTargets[chapter]=target;
+  cameraSelection++;
+  sendNavigationState();sendSelectedDescription(selectedProjectTarget.value);
+  return true;
+}
 function toggleCategory(id) {
   state.categories = state.categories.includes(id) ? state.categories.filter(value => value !== id) : [...state.categories, id];
   send('scene.setInfrastructure', { categories: [...state.categories] });
+  sendNavigationState();
 }
 async function selectChapter(chapter) {
   if (!presentationChapters.some(item => item.id === chapter && item.available) || state.view === chapter) return;
   apartments.close();
   state.view = chapter;
+  externalSelection++;
+  const selection = ++cameraSelection;
   send('ui.selectChapter', { chapter });
+  sendNavigationState();
+  sendSelectedDescription(null);
+  if (props.panel === 'navigation') {
+    await loadChapters();
+    if (state.view === chapter && selection === cameraSelection) requestPresentationCamera('chapter', chapterIndex.items.find(item => item.chapter === chapter));
+  }
   await nextTick();
   root.value.querySelector(`[data-chapter="${chapter}"]`)?.focus();
 }
 function selectProjectTarget(target) {
+  externalSelection++;
   if (state.view !== 'project') {
-    if (!isChapterTarget(state.view, target) || state.chapterTargets[state.view] === target) return;
+    if (!detailChapter.value?.targets.some(item=>item.id===target)) return;
+    if(props.panel!=='navigation' && state.chapterTargets[state.view]===target)return;
     state.chapterTargets[state.view] = target;
+    cameraSelection++;
     send('scene.selectChapterTarget', { chapter: state.view, target });
+    requestPresentationCamera('object', detailChapter.value?.targets.find(item => item.id === target));
+    sendNavigationState();
+    sendSelectedDescription(selectedProjectTarget.value);
     return;
   }
-  if (!detailChapter.value?.targets.some(item => item.id === target) || state.projectTarget === target) return;
+  if (!detailChapter.value?.targets.some(item => item.id === target)) return;
+  if(props.panel!=='navigation' && state.projectTarget===target)return;
   state.projectTarget = target;
+  cameraSelection++;
   send('scene.selectProjectTarget', { target });
+  requestPresentationCamera('object', detailChapter.value?.targets.find(item => item.id === target));
+  sendNavigationState();
+  sendSelectedDescription(selectedProjectTarget.value);
 }
 function setState(next) {
   if (!next || typeof next !== 'object') return;
+  if (props.panel === 'description') {
+    if(typeof next.title==='string')suppliedDescription.title=next.title;
+    if(typeof next.description==='string'||Array.isArray(next.description))suppliedDescription.description=(Array.isArray(next.description)?next.description:next.description.split(/\n+/)).filter(x=>typeof x==='string'&&x.trim());
+    if('room' in next)suppliedDescription.room=typeof next.room==='string'?next.room:null;
+    if('target' in next)suppliedDescription.target=typeof next.target==='string'?next.target:null;
+    if(next.visible===false)suppliedDescription.description=[];
+  }
   if (typeof next.minutes === 'number' && Number.isFinite(next.minutes)) state.minutes = Math.max(0, Math.min(1439, Math.round(next.minutes)));
   if (['summer', 'autumn', 'winter'].includes(next.season)) state.season = next.season;
   if (['clear', 'partlyCloudy', 'overcast', 'rain'].includes(next.weather)) state.weather = next.weather;
@@ -220,11 +286,11 @@ function setState(next) {
     state.view = next.view;
     if (next.view !== 'apartments') { apartments.close(false); windowViewIndex.value = null; }
   }
-  if (typeof next.projectTarget === 'string' && (projectTargets.some(item => item.id === next.projectTarget) || presentationContent.project?.items?.some(item => item.target === next.projectTarget))) state.projectTarget = next.projectTarget;
+  if (next.projectTarget === null || (typeof next.projectTarget === 'string' && (projectTargets.some(item => item.id === next.projectTarget) || presentationContent.project?.items?.some(item => item.target === next.projectTarget)))) state.projectTarget = next.projectTarget;
   if (Array.isArray(next.categories)) state.categories = defaultCategories().filter(id => next.categories.includes(id));
   if (next.chapterTargets && typeof next.chapterTargets === 'object' && !Array.isArray(next.chapterTargets)) {
     for (const chapter of objectChapterIds) {
-      if (isChapterTarget(chapter, next.chapterTargets[chapter])) state.chapterTargets[chapter] = next.chapterTargets[chapter];
+      if (next.chapterTargets[chapter] === null || isChapterTarget(chapter, next.chapterTargets[chapter]) || presentationContent[chapter]?.items?.some(item=>item.target===next.chapterTargets[chapter])) state.chapterTargets[chapter] = next.chapterTargets[chapter];
     }
   }
   if (next.materials && typeof next.materials === 'object') apartments.setMaterials(next.materials);
@@ -234,17 +300,23 @@ function setState(next) {
     if (next.apartments && 'windowViewIndex' in next.apartments) windowViewIndex.value = apartmentState.selected && Number.isInteger(next.apartments.windowViewIndex) && next.apartments.windowViewIndex >= 1 && next.apartments.windowViewIndex <= 3 ? next.apartments.windowViewIndex : null;
   });
 }
-defineExpose({setState, apartmentApi: { select: apartments.select, details: apartments.details, toggleFavorite: apartments.toggleFavorite, removeScreenshot: apartments.removeScreenshot, setFloor: apartments.setFloor, sceneReady: apartments.sceneReady, beginCapture: apartments.beginCapture, setScreenshot: apartments.setScreenshot, loadScreenshot: apartments.loadScreenshot, setSessionToken: apartments.setSessionToken, setMaterials: apartments.setMaterials, resetMaterials, getMaterials: apartments.getMaterials }, getState: () => ({...state, categories: [...state.categories], chapterTargets: {...state.chapterTargets}, apartments: {...apartments.snapshot(), windowViewIndex: windowViewIndex.value}}), focus: () => root.value.querySelector('button')?.focus()});
+defineExpose({setState, selectPresentationObject, apartmentApi: { select: apartments.select, details: apartments.details, toggleFavorite: apartments.toggleFavorite, removeScreenshot: apartments.removeScreenshot, setFloor: apartments.setFloor, sceneReady: apartments.sceneReady, beginCapture: apartments.beginCapture, setScreenshot: apartments.setScreenshot, loadScreenshot: apartments.loadScreenshot, setSessionToken: apartments.setSessionToken, setMaterials: apartments.setMaterials, resetMaterials, getMaterials: apartments.getMaterials }, getState: () => ({...state, categories: [...state.categories], chapterTargets: {...state.chapterTargets}, apartments: {...apartments.snapshot(), windowViewIndex: windowViewIndex.value}}), focus: () => root.value.querySelector('button')?.focus()});
 </script>
 <template>
   <main ref="root" id="presentation" :class="{ 'window-active': windowViewIndex !== null }" :data-view="state.view" :inert="apartmentState.detailsOpen || windowViewIndex !== null" :aria-hidden="apartmentState.detailsOpen || windowViewIndex !== null || undefined" aria-label="Управление презентацией">
+    <SessionExitButton v-if="panel === 'exit'" @exit="send('ui.session.end')" />
     <ApartmentSceneControls v-if="panel === 'full' && state.view === 'apartments'" :state="apartmentState" :preview="preview" :has-session="hasApartmentSession" @filter="apartments.setFilters" @floor="apartments.setFloor" @select="apartments.select($event,true)" @details="listApartmentAction($event, 'details')" @favorite="toggleFavorite($event.id)" @tour="listApartmentAction($event, 'tour')" @window-view="listApartmentAction($event, 'window')" @close-list="apartments.setMode('facade')" @close="closeApartments" />
     <SavedPanel v-if="(panel === 'full' || panel === 'saved') && state.view === 'saved'" :state="apartmentState" @close="closeSaved" @favorite="toggleFavorite" @remove-screenshot="removeSavedScreenshot" @open-apartment="openSavedApartment" />
     <GalleryPanel v-if="(panel === 'full' || panel === 'gallery') && state.view === 'gallery'" @close="closeSaved" />
-    <LocationPanel v-if="panel === 'full' && state.view === 'location'" :categories="state.categories" :preview="preview"
+    <LocationPanel v-if="['full','navigation'].includes(panel) && state.view === 'location'" :categories="state.categories" :preview="panel === 'full' && preview"
       @toggle-category="toggleCategory" @select-chapter="selectChapter" />
-    <ProjectPanel v-if="panel === 'full' && detailChapter" :chapter-data="detailChapter" :chapter="state.view" :target="selectedTargetId" :preview="preview"
-      @select-target="selectProjectTarget" @select-chapter="selectChapter" />
+    <ProjectPanel v-if="['full','navigation'].includes(panel) && detailChapter" :chapter-data="detailChapter" :chapter="state.view" :target="selectedTargetId" :preview="panel === 'full' && preview"
+      :loading="!presentationContent[state.view] || presentationContent[state.view].loading" :error="presentationContent[state.view]?.error || ''"
+      @retry="loadPresentationContent(state.view)" @select-target="selectProjectTarget" @select-chapter="selectChapter" />
+    <section v-if="panel === 'description' && detailChapter && suppliedDescription.description.length" class="isolated-description" aria-label="Описание объекта презентации">
+      <ProjectDescription :target="descriptionTarget" />
+      <button v-if="state.view === 'entrance'" class="isolated-interior-view glass" data-action="scene.requestInteriorView" @click="send('scene.requestInteriorView', {target:suppliedDescription.target})">Вид<span class="location-icon"><img src="assets/chapters/entrance/caret-left.svg" alt=""></span></button>
+    </section>
     <section v-if="panel === 'full' || panel === 'environment'" class="top" :class="{ 'has-description': panel === 'full' && detailChapter }" aria-label="Окружение">
       <div class="glass project"><span>«Идель. Квартал на Сенной»</span><img src="assets/brand.svg" alt="" width="24" height="24"></div>
       <div class="glass logo"><img src="assets/logo.svg" alt="Идель" width="114" height="20"></div>

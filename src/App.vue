@@ -1,5 +1,5 @@
 <script setup>
-import { ref, nextTick, onMounted, onUnmounted } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import WelcomeScreen from './components/WelcomeScreen.vue';
 import SessionForm from './components/SessionForm.vue';
 import PresentationPanel from './components/PresentationPanel.vue';
@@ -8,10 +8,17 @@ import { defaultCategories, presentationChapters } from './data/location.js';
 import { defaultChapterTargets } from './data/chapters.js';
 import { defaultProjectTarget } from './data/project.js';
 import { saveSessionArchive, listSessionArchives, getSessionArchive, deleteSessionArchive } from './api/localArchive.js';
+import { createBrowserDataRuntime } from './api/browserDataRuntime.js';
 
 const query = new URLSearchParams(location.search);
-const panel = ['environment', 'toolbar', 'compass', 'session', 'saved', 'gallery'].includes(query.get('panel')) ? query.get('panel') : 'full';
-const isolated = ['environment', 'toolbar', 'compass', 'saved', 'gallery'].includes(panel);
+const panel = ['environment', 'toolbar', 'compass', 'session', 'saved', 'gallery', 'exit', 'navigation', 'description'].includes(query.get('panel')) ? query.get('panel') : 'full';
+const isolated = ['environment', 'toolbar', 'compass', 'saved', 'gallery', 'exit', 'navigation', 'description'].includes(panel);
+// Configure the gateway before child setup hooks can issue any API requests.
+const dataRuntime = createBrowserDataRuntime(panel);
+const cacheStatus = ref(null);
+const cacheReadyCount = computed(() => cacheStatus.value?.tasks.filter(task=>task.state==='ready').length || 0);
+const cacheHasErrors = computed(() => cacheStatus.value?.tasks.some(task=>task.state==='error') || false);
+function onCacheStatus(event) { cacheStatus.value = event.detail; }
 const previewView = panel === 'full' && query.get('mode') !== 'unreal' && (['apartments','saved','gallery'].includes(query.get('view')) || presentationChapters.some(item => item.id === query.get('view') && item.available)) ? query.get('view') : null;
 const screen = ref(isolated || previewView ? 'presentation' : 'welcome');
 const session = ref(null);
@@ -89,21 +96,28 @@ async function finish(value) {
   if (screen.value === 'presentation') presentation.value.focus();
 }
 onMounted(() => {
+  if(panel==='session')window.addEventListener('idel-cache-status',onCacheStatus);
   if (previewView) presentation.value.setState({ view: previewView });
   document.body.classList.toggle('preview', !isolated && query.get('mode') !== 'unreal');
   document.body.dataset.panel = panel;
-  window.IdelWidget = { getState: () => presentation.value.getState(), setState: setWidgetState };
+  window.IdelWidget = { getState: () => presentation.value.getState(), setState: setWidgetState, selectObject: value => presentation.value.selectPresentationObject(value) };
   window.IdelApartments = presentation.value.apartmentApi;
+  window.IdelData = dataRuntime.api;
   window.IdelSession = { getState: () => session.value ? JSON.parse(JSON.stringify(session.value)) : null, reset, listArchives: listSessionArchives, getArchive: getSessionArchive, deleteArchive: deleteSessionArchive };
   console.log('IDEL:DEBUG onMounted panel=' + panel + ' isolated=' + isolated);
   send('ui.ready', { version: 1, panel });
+  dataRuntime.start();
   if (panel === 'saved') { window.addEventListener('resize', onSavedResize); prepareSaved(); }
 });
-onUnmounted(() => { savedGeneration++; cancelAnimationFrame(savedFrame); window.removeEventListener('resize', onSavedResize); delete document.documentElement.dataset.savedPreparing; delete window.IdelWidget; delete window.IdelSession; delete window.IdelApartments; delete document.body.dataset.panel; });
+onUnmounted(() => { window.removeEventListener('idel-cache-status',onCacheStatus); dataRuntime.dispose(); delete window.IdelData; savedGeneration++; cancelAnimationFrame(savedFrame); window.removeEventListener('resize', onSavedResize); delete document.documentElement.dataset.savedPreparing; delete window.IdelWidget; delete window.IdelSession; delete window.IdelApartments; delete document.body.dataset.panel; });
 </script>
 
 <template>
   <WelcomeScreen ref="welcome" :hidden="screen !== 'welcome'" @start="start" />
   <SessionForm ref="form" :hidden="screen !== 'session'" @close="reset" @enter="finish" />
   <PresentationPanel ref="presentation" :panel="panel" :preview="query.get('mode') !== 'unreal'" :end-session="reset" :hidden="screen !== 'presentation'" />
+  <aside v-if="panel==='session' && cacheStatus?.started && screen!=='complete'" class="data-cache-status glass" role="status" aria-live="polite">
+    <span>{{ cacheReadyCount === cacheStatus.tasks.length && !cacheStatus.running ? 'Данные презентации загружены' : `Подготовка данных: ${cacheReadyCount} из ${cacheStatus.tasks.length}` }}</span>
+    <template v-if="cacheHasErrors"><span>Часть данных недоступна.</span><button type="button" @click="dataRuntime.api.retry()">Повторить загрузку</button></template>
+  </aside>
 </template>

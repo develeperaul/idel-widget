@@ -14,18 +14,20 @@ const path = require('node:path');
       ['environment',297,312,'.top','[data-season="winter"]','scene.setSeason'],
       ['toolbar',294,106,'.bottom','[data-action="scene.home"]','scene.home'],
       ['compass',56,64,'.compass','.compass','scene.resetNorth'],
+      ['exit',96,100,'.session-exit-button','.session-exit-button','ui.session.end'],
     ]) {
       await page.setViewportSize({width,height});
-      await page.goto(base + '?mode=unreal&panel=' + panel,{timeout:90000});
+      await page.goto(base + '?data=standalone&mode=unreal&panel=' + panel,{timeout:90000});
       await page.evaluate(() => document.fonts.ready);
-      await page.evaluate(() => window.addEventListener('idel-command', event => window.lastCommand = event.detail));
+      await page.evaluate(() => { window.panelCommands = []; window.addEventListener('idel-command', event => { window.lastCommand = event.detail; window.panelCommands.push(event.detail); }); });
       assert.equal(await page.locator('#welcome').isVisible(),false);
       assert.equal(await page.locator(selector).isVisible(),true);
       const box = await page.locator(selector).boundingBox();
       assert.ok(box.x >= 0 && box.y >= 0 && box.x+box.width <= width && box.y+box.height <= height, JSON.stringify(box));
       assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor),'rgba(0, 0, 0, 0)');
       await page.locator(action).click();
-      assert.equal(await page.evaluate(() => lastCommand.method),method);
+      assert.equal(await page.evaluate(method => panelCommands.some(c => c.method === method), method),true);
+      if (panel === 'toolbar') assert.equal(await page.evaluate(() => panelCommands.find(c => c.method === 'ui.presentation.state')?.params.view),'home');
       if (panel === 'environment') {
         await page.evaluate(() => {
           window.timeCommands = [];
@@ -48,7 +50,7 @@ const path = require('node:path');
       await page.screenshot({path:path.join(__dirname,`preview-panel-${panel}.png`)});
     }
     await page.setViewportSize({width:1920,height:1080});
-    await page.goto(base+'?mode=unreal&panel=session',{timeout:90000});
+    await page.goto(base+'?data=standalone&mode=unreal&panel=session',{timeout:90000});
     await page.locator('#start').click();
     await page.locator('#guest').click();
     assert.equal(await page.locator('#presentation').isVisible(),false);
